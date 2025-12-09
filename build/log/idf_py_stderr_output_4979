@@ -1,3 +1,0 @@
-info: INFO: Symbol BSP_I2S_NUM defined in multiple locations (see below). Please check if this is a correct behavior or a random name match:
-    /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/1-Demo/idf-examples/common_components/bsp_extra/Kconfig:2
-    /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/1-Demo/idf-examples/common_components/esp32_p4_function_ev_board/Kconfig:30

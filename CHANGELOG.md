@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.0] - 2025-12-09
+### Added
+- **VolosR Style Redesign**: Complete UI overhaul with dark theme and large arc gauge.
+- **Trending Graph**: New screen with live-updating line chart (cyan/dark theme).
+- **Settings Screen**: Configuration interface for Min/Max values and Color Zones (Blue/Yellow/Red limits).
+- **Dynamic Configuration**: Gauge range and colors now respond immediately to settings changes.
+
+### Changed
+- Replaced card-style widget with transparent/black container layout.
+- Updated main screen background to black (`#000000`).
+
+## [0.2.0] - 2025-12-09
+### Added
+- **Gas Widget UI**: Replaced simple bar gauge with a "Methane PPM" gas widget.
+    - Semi-circular gauge with Red/Yellow/Green zones.
+    - Dynamic status bar (SAFE/WARNING/DANGER).
+    - Simulated real-time updates.
+- **Trending Screen**: Added a secondary screen accessible via "Trending" button.
+- **Dependencies**: Added `esp_driver_ppa`, `esp_mm`, `usb` (drivers) to CMakeLists.
+
+### Fixed
+- **Build System**: Restored missing `main/CMakeLists.txt` and fixed `undefined reference to app_main`.
+- **Refactoring**: Cleaned up `lvgl_sw_rotation.c` structure (helper functions vs `app_main`).
+
 ## [v0.1.1] - 2025-12-09
 
 ### Added

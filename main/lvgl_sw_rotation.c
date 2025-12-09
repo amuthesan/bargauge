@@ -428,6 +428,395 @@ static esp_err_t bsp_display_backlight_on(void)
     return bsp_display_brightness_set(100);
 }
 
+// --- Configuration Structure ---
+typedef struct {
+    int min_val;
+    int max_val;
+    int blue_limit;   // 0 to blue_limit (Cyan)
+    int yellow_limit; // blue_limit to yellow_limit (Yellow)
+    int red_limit;    // yellow_limit to red_limit (Warning?? No, usually Red starts here)
+                      // User Req: 
+                      // Blue Zone: from min until C
+                      // Yellow Zone: from C until X
+                      // Red Zone: from X to max
+    int threshold;    // Future use
+} GasGaugeConfig;
+
+static GasGaugeConfig methane_config = {
+    .min_val = 0,
+    .max_val = 100,
+    .blue_limit = 30, // 0-30 Cyan
+    .yellow_limit = 70, // 30-70 Yellow, so 70 is end of yellow/start of red? 
+                        // Let's interpret: < 30 Cyan, < 70 Yellow, >= 70 Red.
+    .red_limit = 100,  // unused if logic is "rest is red"
+    .threshold = 80
+};
+
+// Forward declarations
+static lv_obj_t * create_gas_widget(lv_obj_t *parent);
+static void create_trending_screen(void);
+static void create_settings_screen(void);
+static void create_main_screen(void);
+
+// Global/Static references for updates
+static lv_obj_t * const_arc = NULL;
+static lv_obj_t * const_val_label = NULL;
+static lv_obj_t * const_chart = NULL;
+static lv_chart_series_t * const_ser1 = NULL;
+
+static lv_obj_t * main_screen = NULL;
+static lv_obj_t * trending_screen = NULL;
+static lv_obj_t * settings_screen = NULL;
+
+static void trending_btn_event_cb(lv_event_t * e) {
+    if (trending_screen == NULL) {
+        create_trending_screen();
+    }
+    lv_scr_load_anim(trending_screen, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, false);
+}
+
+static void settings_btn_event_cb(lv_event_t * e) {
+    if (settings_screen == NULL) {
+        create_settings_screen();
+    }
+    lv_scr_load_anim(settings_screen, LV_SCR_LOAD_ANIM_MOVE_TOP, 500, 0, false);
+}
+
+static void back_from_trending_cb(lv_event_t * e) {
+    if (main_screen) {
+        lv_scr_load_anim(main_screen, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, false);
+    }
+}
+
+static void back_from_settings_cb(lv_event_t * e) {
+    if (main_screen) {
+        lv_scr_load_anim(main_screen, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 500, 0, false);
+    }
+}
+
+// --- Spinbox Event Handlers ---
+static void spinbox_increment_event_cb(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if(code == LV_EVENT_SHORT_CLICKED || code == LV_EVENT_LONG_PRESSED_REPEAT) {
+        lv_obj_t * spinbox = lv_event_get_user_data(e);
+        lv_spinbox_increment(spinbox);
+    }
+}
+
+static void spinbox_decrement_event_cb(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if(code == LV_EVENT_SHORT_CLICKED || code == LV_EVENT_LONG_PRESSED_REPEAT) {
+        lv_obj_t * spinbox = lv_event_get_user_data(e);
+        lv_spinbox_decrement(spinbox);
+    }
+}
+
+static void min_val_event_cb(lv_event_t * e) {
+    lv_obj_t * spinbox = lv_event_get_target(e);
+    methane_config.min_val = (int)lv_spinbox_get_value(spinbox);
+}
+
+static void max_val_event_cb(lv_event_t * e) {
+    lv_obj_t * spinbox = lv_event_get_target(e);
+    methane_config.max_val = (int)lv_spinbox_get_value(spinbox);
+}
+
+static void blue_limit_event_cb(lv_event_t * e) {
+    lv_obj_t * spinbox = lv_event_get_target(e);
+    methane_config.blue_limit = (int)lv_spinbox_get_value(spinbox);
+}
+
+static void yellow_limit_event_cb(lv_event_t * e) {
+    lv_obj_t * spinbox = lv_event_get_target(e);
+    methane_config.yellow_limit = (int)lv_spinbox_get_value(spinbox);
+}
+
+static void threshold_event_cb(lv_event_t * e) {
+    lv_obj_t * spinbox = lv_event_get_target(e);
+    methane_config.threshold = (int)lv_spinbox_get_value(spinbox);
+}
+
+static lv_obj_t * create_spinbox_row(lv_obj_t * parent, const char * title, int min, int max, int current, lv_event_cb_t cb) {
+    lv_obj_t * cont = lv_obj_create(parent);
+    lv_obj_set_size(cont, 380, 50);
+    lv_obj_set_style_bg_opa(cont, 0, 0);
+    lv_obj_set_style_border_width(cont, 0, 0);
+    lv_obj_set_style_pad_all(cont, 0, 0);
+    lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(cont, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+    lv_obj_t * lbl = lv_label_create(cont);
+    lv_label_set_text(lbl, title);
+    lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
+
+    // Spinbox container
+    lv_obj_t * right_box = lv_obj_create(cont);
+    lv_obj_set_size(right_box, 160, 40);
+    lv_obj_set_style_bg_opa(right_box, 0, 0);
+    lv_obj_set_style_border_width(right_box, 0, 0);
+    lv_obj_set_style_pad_all(right_box, 0, 0);
+    lv_obj_set_flex_flow(right_box, LV_FLEX_FLOW_ROW);
+    
+    lv_obj_t * spinbox = lv_spinbox_create(right_box);
+    lv_spinbox_set_range(spinbox, min, max);
+    lv_spinbox_set_digit_format(spinbox, 4, 0);
+    lv_spinbox_step_prev(spinbox);
+    lv_obj_set_width(spinbox, 70);
+    lv_obj_center(spinbox);
+    lv_spinbox_set_value(spinbox, current);
+    lv_obj_add_event_cb(spinbox, cb, LV_EVENT_VALUE_CHANGED, NULL);
+    
+    lv_obj_t * btn_minus = lv_btn_create(right_box);
+    lv_obj_set_size(btn_minus, 35, 35);
+    lv_obj_set_style_bg_color(btn_minus, lv_color_hex(0x404040), 0);
+    lv_obj_add_event_cb(btn_minus, spinbox_decrement_event_cb, LV_EVENT_ALL, spinbox);
+    lv_obj_t * lbl_minus = lv_label_create(btn_minus);
+    lv_label_set_text(lbl_minus, "-");
+    lv_obj_center(lbl_minus);
+
+    lv_obj_t * btn_plus = lv_btn_create(right_box);
+    lv_obj_set_size(btn_plus, 35, 35);
+    lv_obj_set_style_bg_color(btn_plus, lv_color_hex(0x404040), 0);
+    lv_obj_add_event_cb(btn_plus, spinbox_increment_event_cb, LV_EVENT_ALL, spinbox);
+    lv_obj_t * lbl_plus = lv_label_create(btn_plus);
+    lv_label_set_text(lbl_plus, "+");
+    lv_obj_center(lbl_plus);
+
+    return cont;
+}
+
+static void create_settings_screen(void) {
+    settings_screen = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(settings_screen, lv_color_hex(0x000000), 0);
+    lv_obj_set_flex_flow(settings_screen, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(settings_screen, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+    // Header
+    lv_obj_t * header = lv_label_create(settings_screen);
+    lv_label_set_text(header, "Configuration");
+    lv_obj_set_style_text_font(header, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(header, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_pad_bottom(header, 20, 0);
+
+    // Dropdown (Mockup for now as we only have 1 gauge)
+    lv_obj_t * dd = lv_dropdown_create(settings_screen);
+    lv_dropdown_set_options(dd, "Methane Sensor");
+    lv_obj_set_width(dd, 200);
+
+    // Spinboxes
+    create_spinbox_row(settings_screen, "Min Value", -999, 9999, methane_config.min_val, min_val_event_cb);
+    create_spinbox_row(settings_screen, "Max Value", 0, 9999, methane_config.max_val, max_val_event_cb);
+    create_spinbox_row(settings_screen, "Blue Limit", 0, 9999, methane_config.blue_limit, blue_limit_event_cb);
+    create_spinbox_row(settings_screen, "Yellow Limit", 0, 9999, methane_config.yellow_limit, yellow_limit_event_cb);
+    create_spinbox_row(settings_screen, "Threshold", 0, 9999, methane_config.threshold, threshold_event_cb);
+
+    // Back Button
+    lv_obj_t * btn = lv_btn_create(settings_screen);
+    lv_obj_set_size(btn, 120, 50);
+    lv_obj_add_event_cb(btn, back_from_settings_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0x202020), 0);
+    lv_obj_set_style_border_color(btn, lv_color_hex(0x505050), 0);
+    lv_obj_set_style_border_width(btn, 1, 0);
+    
+    lv_obj_t * lbl = lv_label_create(btn);
+    lv_label_set_text(lbl, LV_SYMBOL_UP " Back");
+    lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_center(lbl);
+}
+
+static lv_obj_t* create_gas_widget(lv_obj_t *parent) {
+    // 1. Container (Dark Background)
+    lv_obj_t * container = lv_obj_create(parent);
+    lv_obj_set_size(container, 400, 400);
+    lv_obj_center(container);
+    lv_obj_set_style_bg_opa(container, 0, 0); // Transparent
+    lv_obj_set_style_border_width(container, 0, 0);
+    lv_obj_set_style_pad_all(container, 0, 0);
+
+    // 2. Arc Gauge (270 degree)
+    lv_obj_t * arc = lv_arc_create(container);
+    lv_obj_set_size(arc, 300, 300);
+    lv_arc_set_rotation(arc, 135); // Start at bottom-left
+    lv_arc_set_bg_angles(arc, 0, 270);
+    lv_arc_set_range(arc, methane_config.min_val, methane_config.max_val);
+    lv_arc_set_value(arc, 0);
+    lv_obj_center(arc);
+    lv_obj_remove_style(arc, NULL, LV_PART_KNOB); // Remove knob
+    
+    // Style: Dark Grey Background Arc
+    lv_obj_set_style_arc_color(arc, lv_color_hex(0x303030), LV_PART_MAIN);
+    lv_obj_set_style_arc_width(arc, 20, LV_PART_MAIN);
+    
+    // Style: Indicator Arc
+    lv_obj_set_style_arc_color(arc, lv_color_hex(0x00FFFF), LV_PART_INDICATOR); // Cyan default
+    lv_obj_set_style_arc_width(arc, 20, LV_PART_INDICATOR);
+    
+    const_arc = arc;
+
+    // 3. Digital Value "00"
+    lv_obj_t * val_lbl = lv_label_create(container);
+    lv_label_set_text(val_lbl, "0");
+    lv_obj_set_style_text_font(val_lbl, &lv_font_montserrat_32, 0);
+    lv_obj_set_style_text_color(val_lbl, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_center(val_lbl);
+    lv_obj_align(val_lbl, LV_ALIGN_CENTER, 0, -10);
+    
+    const_val_label = val_lbl;
+
+    // 4. Label "METHANE"
+    lv_obj_t * title_lbl = lv_label_create(container);
+    lv_label_set_text(title_lbl, "METHANE");
+    lv_obj_set_style_text_font(title_lbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(title_lbl, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_align(title_lbl, LV_ALIGN_CENTER, 0, -50);
+
+    // 5. Label "PPM"
+    lv_obj_t * unit_lbl = lv_label_create(container);
+    lv_label_set_text(unit_lbl, "PPM");
+    lv_obj_set_style_text_font(unit_lbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(unit_lbl, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_align(unit_lbl, LV_ALIGN_CENTER, 0, 30);
+
+    // 6. Trending Button
+    lv_obj_t * btn = lv_btn_create(container);
+    lv_obj_set_size(btn, 120, 40);
+    lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -10);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0x202020), 0);
+    lv_obj_set_style_border_color(btn, lv_color_hex(0x505050), 0);
+    lv_obj_set_style_border_width(btn, 1, 0);
+    lv_obj_set_style_radius(btn, 20, 0);
+    lv_obj_add_event_cb(btn, trending_btn_event_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t * btn_lbl = lv_label_create(btn);
+    lv_label_set_text(btn_lbl, "TRENDING");
+    lv_obj_set_style_text_color(btn_lbl, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_font(btn_lbl, &lv_font_montserrat_14, 0);
+    lv_obj_center(btn_lbl);
+
+    return container;
+}
+
+static void create_trending_screen(void) {
+    trending_screen = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(trending_screen, lv_color_hex(0x000000), 0); // Black bg
+
+    lv_obj_t * label = lv_label_create(trending_screen);
+    lv_label_set_text(label, "Trending Data");
+    lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
+    lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 20);
+
+    lv_obj_t * back_btn = lv_btn_create(trending_screen);
+    lv_obj_set_size(back_btn, 100, 40);
+    lv_obj_align(back_btn, LV_ALIGN_TOP_LEFT, 20, 20);
+    lv_obj_set_style_bg_color(back_btn, lv_color_hex(0x202020), 0);
+    lv_obj_set_style_border_color(back_btn, lv_color_hex(0x505050), 0);
+    lv_obj_set_style_border_width(back_btn, 1, 0);
+    lv_obj_add_event_cb(back_btn, back_from_trending_cb, LV_EVENT_CLICKED, NULL);
+    
+    lv_obj_t * lbl = lv_label_create(back_btn);
+    lv_label_set_text(lbl, LV_SYMBOL_LEFT " Back");
+    lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_center(lbl);
+
+    // Chart Implementation
+    lv_obj_t * chart = lv_chart_create(trending_screen);
+    lv_obj_set_size(chart, 600, 300); // Landscape: 800 width, use 600.
+    lv_obj_center(chart);
+    lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
+    lv_chart_set_point_count(chart, 50); // Show last 50 points
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 0, 100); // Should also likely depend on config?
+    // For now hardcoded 0-100 in chart creation but we can update it in timer too.
+    
+    // Style: Dark Chart Background
+    lv_obj_set_style_bg_color(chart, lv_color_hex(0x101010), 0); // Slightly lighter than black
+    lv_obj_set_style_border_color(chart, lv_color_hex(0x404040), 0);
+    
+    // Style: Grid lines
+    lv_obj_set_style_line_color(chart, lv_color_hex(0x303030), LV_PART_MAIN); // Grid
+    
+    // Series: Cyan
+    const_ser1 = lv_chart_add_series(chart, lv_color_hex(0x00E0FF), LV_CHART_AXIS_PRIMARY_Y);
+    const_chart = chart;
+}
+
+// Timer to simulate data updates and apply config
+static void gas_update_timer_cb(lv_timer_t * timer) {
+    // Simulate value 0-100
+    static float val = 0;
+    static bool up = true;
+    if(up) val += 1.0f; else val -= 1.0f;
+    if(val >= 100) up = false;
+    if(val <= 0) up = true;
+    
+    // Update Arc
+    if(const_arc) {
+        // Apply Config Range dynamically
+        lv_arc_set_range(const_arc, methane_config.min_val, methane_config.max_val);
+        lv_arc_set_value(const_arc, (int32_t)val);
+        
+        // Dynamic Color Logic based on Config
+        // Blue Zone: [0, blue_limit]
+        // Yellow Zone: [blue_limit, yellow_limit]
+        // Red Zone: [yellow_limit, max]
+        
+        if (val < methane_config.blue_limit) {
+            // Blue/Cyan
+           lv_obj_set_style_arc_color(const_arc, lv_color_hex(0x00FFFF), LV_PART_INDICATOR); 
+        } else if (val < methane_config.yellow_limit) {
+            // Yellow
+           lv_obj_set_style_arc_color(const_arc, lv_color_hex(0xFFFF00), LV_PART_INDICATOR);
+        } else {
+            // Red (Danger)
+           lv_obj_set_style_arc_color(const_arc, lv_color_hex(0xFF0000), LV_PART_INDICATOR);
+           lv_obj_set_style_img_recolor(const_arc, lv_color_hex(0xFF0000), LV_PART_KNOB); 
+        }
+    }
+
+    // Update Label
+    if(const_val_label) {
+        lv_label_set_text_fmt(const_val_label, "%d", (int)val);
+    }
+}
+
+static void create_main_screen(void) {
+    if(lvgl_port_lock(-1)) {
+        main_screen = lv_obj_create(NULL);
+        // Set screen background to Black (VolosR style)
+        lv_obj_set_style_bg_color(main_screen, lv_color_hex(0x000000), 0);
+        
+        // Time Label (Top Right or Center)
+        time_label = lv_label_create(main_screen);
+        lv_label_set_text(time_label, "--:--:--");
+        lv_obj_set_style_text_font(time_label, &lv_font_montserrat_24, 0);
+        lv_obj_set_style_text_color(time_label, lv_color_hex(0x00BFFF), 0);
+        lv_obj_align(time_label, LV_ALIGN_TOP_RIGHT, -20, 20);
+        
+        // Settings Button (Bottom Right)
+        lv_obj_t * settings_btn = lv_btn_create(main_screen);
+        lv_obj_set_size(settings_btn, 50, 50);
+        lv_obj_align(settings_btn, LV_ALIGN_BOTTOM_RIGHT, -20, -20);
+        lv_obj_set_style_bg_color(settings_btn, lv_color_hex(0x202020), 0);
+        lv_obj_set_style_shadow_width(settings_btn, 0, 0);
+        lv_obj_add_event_cb(settings_btn, settings_btn_event_cb, LV_EVENT_CLICKED, NULL);
+        
+        lv_obj_t * sett_lbl = lv_label_create(settings_btn);
+        lv_label_set_text(sett_lbl, LV_SYMBOL_SETTINGS);
+        lv_obj_set_style_text_color(sett_lbl, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_center(sett_lbl);
+
+        // Create Gas Widget
+        create_gas_widget(main_screen);
+        
+        // Start Update Timer
+        lv_timer_create(gas_update_timer_cb, 100, NULL);
+        lv_timer_create(update_time_timer_cb, 1000, NULL);
+
+        lv_scr_load(main_screen);
+        lvgl_port_unlock();
+    }
+}
+
 void app_main(void)
 {
     // Initialize NVS
@@ -598,101 +987,13 @@ void app_main(void)
     // vTaskDelay(pdMS_TO_TICKS(2000));
     ESP_LOGI(TAG, "Starting app_main...");
 
-    // ... (existing code)
-
     ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_gsl3680(tp_io_handle, &tp_cfg, &tp_handle));
 
     lvgl_port_interface_t interface = (dpi_config.flags.use_dma2d) ? LVGL_PORT_INTERFACE_MIPI_DSI_DMA : LVGL_PORT_INTERFACE_MIPI_DSI_NO_DMA;
     ESP_LOGI(TAG,"interface is %d",interface);
     ESP_ERROR_CHECK(lvgl_port_init(disp_panel, tp_handle, interface));
 
-     bsp_display_brightness_set(100);
-
-    // ===== Custom Bar Gauge Application =====
-    
-    // Gauge configuration structure
-    typedef struct {
-        char name[32];
-        char unit[16];
-        float min_value;
-        float max_value;
-        float threshold;
-        float current_value;
-    } gauge_config_t;
-
-    // Initialize gauge config with defaults
-    static gauge_config_t gauge_config = {
-        .name = "Pressure Gauge",
-        .unit = "PSI",
-        .min_value = 0.0f,
-        .max_value = 150.0f,
-        .threshold = 100.0f,
-        .current_value = 75.5f,
-    };
-
-    // Create main screen
-    if(lvgl_port_lock(-1))
-    {
-        lv_obj_t *main_screen = lv_obj_create(NULL);
-        lv_obj_set_style_bg_color(main_screen, lv_color_hex(0x1a1a1a), 0);
-        
-        // Title
-        lv_obj_t *title = lv_label_create(main_screen);
-        lv_label_set_text(title, gauge_config.name);
-        lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
-        lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
-        lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 40);
-        
-        // Bar gauge (horizontal)
-        lv_obj_t *bar_gauge = lv_bar_create(main_screen);
-        lv_obj_set_size(bar_gauge, 900, 80);
-        lv_bar_set_range(bar_gauge, (int)gauge_config.min_value, (int)gauge_config.max_value);
-        lv_bar_set_value(bar_gauge, (int)gauge_config.current_value, LV_ANIM_ON);
-        lv_obj_set_style_bg_color(bar_gauge, lv_color_hex(0x404040), LV_PART_MAIN);
-        lv_obj_set_style_bg_color(bar_gauge, lv_color_hex(0x00AA00), LV_PART_INDICATOR);
-        lv_obj_align(bar_gauge, LV_ALIGN_CENTER, 0, -50);
-        
-        // Value label (next to bar)
-        lv_obj_t *value_label = lv_label_create(main_screen);
-        char value_text[32];
-        snprintf(value_text, sizeof(value_text), "%.1f %s", gauge_config.current_value, gauge_config.unit);
-        lv_label_set_text(value_label, value_text);
-        lv_obj_set_style_text_font(value_label, &lv_font_montserrat_14, 0);
-        lv_obj_set_style_text_color(value_label, lv_color_hex(0xFFFFFF), 0);
-        lv_obj_align(value_label, LV_ALIGN_CENTER, 0, 50);
-        
-        // Digital Clock (Top Center)
-        time_label = lv_label_create(main_screen);
-        lv_label_set_text(time_label, "--:--:--");
-        lv_obj_set_style_text_font(time_label, &lv_font_montserrat_24, 0);
-        lv_obj_set_style_text_color(time_label, lv_color_hex(0x00BFFF), 0); // Deep Sky Blue
-        lv_obj_align(time_label, LV_ALIGN_TOP_MID, 0, 10); // Above title
-        
-        // Create a 1-second timer to update the clock
-        lv_timer_create(update_time_timer_cb, 1000, NULL);
-        
-        // Info labels (Min, Max, Threshold)
-        lv_obj_t *info_label = lv_label_create(main_screen);
-        char info_text[64];
-        snprintf(info_text, sizeof(info_text), "Min: %.0f    Max: %.0f    Threshold: %.0f", 
-                 gauge_config.min_value, gauge_config.max_value, gauge_config.threshold);
-        lv_label_set_text(info_label, info_text);
-        lv_obj_set_style_text_font(info_label, &lv_font_montserrat_14, 0);
-        lv_obj_set_style_text_color(info_label, lv_color_hex(0xAAAAAA), 0);
-        lv_obj_align(info_label, LV_ALIGN_CENTER, 0, 120);
-        
-        // Settings button
-        lv_obj_t *btn_settings = lv_btn_create(main_screen);
-       lv_obj_set_size(btn_settings, 180, 60);
-        lv_obj_align(btn_settings, LV_ALIGN_BOTTOM_MID, 0, -40);
-        lv_obj_t *btn_label = lv_label_create(btn_settings);
-        lv_label_set_text(btn_label, LV_SYMBOL_SETTINGS " Settings");
-        lv_obj_set_style_text_font(btn_label, &lv_font_montserrat_14, 0);
-        lv_obj_center(btn_label);
-        
-        lv_scr_load(main_screen);
-        lvgl_port_unlock();
-    }
-
     bsp_display_backlight_on();
+    // Show Main Screen (Gas Widget)
+    create_main_screen();
 }
