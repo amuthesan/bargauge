@@ -8,6 +8,7 @@
 #include "esp_wifi_remote.h"
 #include "esp_netif.h"
 #include "nvs_flash.h"
+#include "nvs.h" 
 #include "esp_sntp.h"
 #include "esp_event.h"
 #include "driver/spi_master.h"
@@ -425,12 +426,40 @@ typedef struct {
     int threshold;    // Future use
 } GasGaugeConfig;
 
-static GasGaugeConfig gauge_configs[8];
+static GasGaugeConfig gauge_configs[16];
 static int current_edit_index = 0; // Index of gauge currently being edited in settings
+static int current_page = 0; // 0 for Page 1, 1 for Page 2
 
-// Initialize configs (call in app_main or static init)
-static void init_gauge_configs(void) {
-    for(int i=0; i<8; i++) {
+// Gauge Arrays - Expanded to 16
+static lv_obj_t * gauge_widgets[16] = {NULL};
+static lv_obj_t * gauge_arcs[16] = {NULL};
+static lv_obj_t * gauge_labels[16] = {NULL}; // Digital Value
+static lv_obj_t * gauge_title_labels[16] = {NULL};
+static lv_obj_t * gauge_unit_labels[16] = {NULL};
+
+static lv_obj_t * grid_page_1 = NULL;
+static lv_obj_t * grid_page_2 = NULL;
+static lv_obj_t * btn_next = NULL;
+static lv_obj_t * btn_prev = NULL;
+
+// Save Configs to NVS
+static void save_gauge_configs(void) {
+    nvs_handle_t my_handle;
+    esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
+    if (err == ESP_OK) {
+        nvs_set_blob(my_handle, "gauge_cfg", gauge_configs, sizeof(gauge_configs));
+        nvs_commit(my_handle);
+        nvs_close(my_handle);
+        ESP_LOGI(TAG, "Gauge Configs Saved to NVS");
+    } else {
+        ESP_LOGE(TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
+    }
+}
+
+// Load Configs from NVS
+static void load_gauge_configs(void) {
+    // 1. Initialize ALL to Defaults first (to handle partial/legacy NVS load)
+    for(int i=0; i<16; i++) {
         snprintf(gauge_configs[i].name, 32, "GAUGE %d", i+1);
         snprintf(gauge_configs[i].unit, 16, "PPM");
         gauge_configs[i].min_val = 0;
@@ -440,6 +469,39 @@ static void init_gauge_configs(void) {
         gauge_configs[i].red_limit = 100;
         gauge_configs[i].threshold = 80;
     }
+
+    nvs_handle_t my_handle;
+    esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
+    if (err == ESP_OK) {
+        size_t required_size = sizeof(gauge_configs);
+        // We pass the full size buffer. 
+        // If stored blob is smaller (e.g. 8 gauges), it will load those and leave rest as defaults.
+        err = nvs_get_blob(my_handle, "gauge_cfg", gauge_configs, &required_size);
+        nvs_close(my_handle);
+        
+        if (err == ESP_OK) {
+            ESP_LOGI(TAG, "Gauge Configs Loaded from NVS");
+            
+            // SANITY CHECK: Accessing NVS with zeros (from previous bugs) 
+            // might overwrite our defaults with 0-0 ranges.
+            // Verify and fix invalid ranges.
+            for(int i=0; i<16; i++) {
+                if (gauge_configs[i].max_val <= gauge_configs[i].min_val) {
+                    ESP_LOGW(TAG, "Gauge %d value invalid (Min %d, Max %d). Resetting to Default.", i, gauge_configs[i].min_val, gauge_configs[i].max_val);
+                     snprintf(gauge_configs[i].name, 32, "GAUGE %d", i+1);
+                    snprintf(gauge_configs[i].unit, 16, "PPM");
+                    gauge_configs[i].min_val = 0;
+                    gauge_configs[i].max_val = 100;
+                    gauge_configs[i].blue_limit = 30;
+                    gauge_configs[i].yellow_limit = 70;
+                    gauge_configs[i].red_limit = 100;
+                    gauge_configs[i].threshold = 80;
+                }
+            }
+            return;
+        }
+    }
+    ESP_LOGW(TAG, "NVS Load failed or empty. Using Defaults.");
 }
 
 // Forward declarations
@@ -447,17 +509,12 @@ static lv_obj_t * create_gas_widget(lv_obj_t *parent, int index);
 static void create_trending_screen(void);
 static void create_settings_screen(void);
 static void create_main_screen(void);
+static void next_page_cb(lv_event_t * e);
+static void prev_page_cb(lv_event_t * e);
 
 // Global/Static references for updates
 static lv_obj_t * time_label = NULL; // For time display
 static lv_obj_t * wifi_status_icon = NULL; // For WiFi status
-
-// Gauge Arrays
-static lv_obj_t * gauge_widgets[8] = {NULL};
-static lv_obj_t * gauge_arcs[8] = {NULL};
-static lv_obj_t * gauge_labels[8] = {NULL}; // Digital Value
-static lv_obj_t * gauge_title_labels[8] = {NULL};
-static lv_obj_t * gauge_unit_labels[8] = {NULL};
 
 static lv_obj_t * const_chart = NULL;
 static lv_chart_series_t * const_ser1 = NULL;
@@ -508,6 +565,10 @@ static void back_from_settings_cb(lv_event_t * e) {
         if (gauge_unit_labels[current_edit_index]) {
             lv_label_set_text(gauge_unit_labels[current_edit_index], gauge_configs[current_edit_index].unit);
         }
+        
+        // Save to NVS
+        save_gauge_configs();
+        
         lv_scr_load_anim(main_screen, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 500, 0, false);
     }
 }
@@ -606,21 +667,21 @@ static void int_val_ta_cb(lv_event_t * e) {
 static lv_obj_t * create_config_row(lv_obj_t * parent, const char * title, const char * text_buffer, int id, int type) {
     // Type 0: Int, 1: Name, 2: Unit
     lv_obj_t * cont = lv_obj_create(parent);
-    lv_obj_set_size(cont, 780, 70); // Wider, taller
+    lv_obj_set_size(cont, 780, 45); // Ultra-Compact row height
     lv_obj_set_style_bg_opa(cont, 0, 0);
     lv_obj_set_style_border_width(cont, 0, 0);
-    lv_obj_set_style_pad_all(cont, 5, 0);
+    lv_obj_set_style_pad_all(cont, 0, 0); // Zero padding
     lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(cont, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     lv_obj_t * lbl = lv_label_create(cont);
     lv_label_set_text(lbl, title);
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_24, 0); // Large font
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_16, 0); // Smaller font
     lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
 
     lv_obj_t * ta = lv_textarea_create(cont);
-    lv_obj_set_size(ta, 300, 50);
-    lv_obj_set_style_text_font(ta, &lv_font_montserrat_24, 0); // Large font
+    lv_obj_set_size(ta, 200, 35); // Smaller, wider aspect ratio
+    lv_obj_set_style_text_font(ta, &lv_font_montserrat_16, 0); // Match label font
     lv_textarea_set_one_line(ta, true);
     lv_textarea_set_text(ta, text_buffer); // Direct value set
     
@@ -677,11 +738,13 @@ static void create_settings_screen(void) {
 
     // Dropdown to Select Gauge
     lv_obj_t * dd = lv_dropdown_create(settings_screen);
-    lv_dropdown_set_options(dd, "Gauge 1\nGauge 2\nGauge 3\nGauge 4\nGauge 5\nGauge 6\nGauge 7\nGauge 8");
+    // 16 Options manually or generated? Manual string is safer for LVGL version compat
+    lv_dropdown_set_options(dd, "Gauge 1\nGauge 2\nGauge 3\nGauge 4\nGauge 5\nGauge 6\nGauge 7\nGauge 8\n"
+                                "Gauge 9\nGauge 10\nGauge 11\nGauge 12\nGauge 13\nGauge 14\nGauge 15\nGauge 16");
     lv_obj_set_width(dd, 200);
     lv_dropdown_set_selected(dd, current_edit_index);
     lv_obj_add_event_cb(dd, dd_event_cb, LV_EVENT_ALL, NULL);
-    lv_obj_set_style_margin_bottom(dd, 20, 0);
+    lv_obj_set_style_margin_bottom(dd, 10, 0); // Reduced margin
 
     // Rows - Using simplified callback logic
     // Now passing PRE-FORMATTED strings and INT IDs
@@ -773,8 +836,8 @@ static lv_obj_t* create_gas_widget(lv_obj_t *parent, int index) {
     lv_label_set_text(val_lbl, "0");
     lv_obj_set_style_text_font(val_lbl, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(val_lbl, lv_color_hex(0xFFFFFF), 0);
-    // Align inside arc center
-    lv_obj_align_to(val_lbl, arc, LV_ALIGN_CENTER, 0, 0);
+    // Align inside arc center, slightly adjusted for visual center
+    lv_obj_align_to(val_lbl, arc, LV_ALIGN_CENTER, -3, 0);
     
     gauge_labels[index] = val_lbl;
 
@@ -860,46 +923,65 @@ static void create_trending_screen(void) {
     const_chart = chart;
 }
 
-// Update all 8 gauges
+// Update all 16 gauges - Simulation Mode
 static void gas_update_timer_cb(lv_timer_t * timer) {
-    for(int i=0; i<8; i++) {
-        if (!gauge_arcs[i] || !gauge_labels[i]) continue;
+    // Only update gauges for the CURRENT page to save performance
+    // Page 0: 0-7, Page 1: 8-15
+    int start_idx = current_page * 8;
+    int end_idx = start_idx + 8;
 
-        // Simulate Gas Value (Sine wave + noise + offset based on index)
-        static float angle[8] = {0}; // Separate angle for each gauge
-        angle[i] += 0.05f + (float)i * 0.005f; // Slightly different speed
-        int noise = (rand() % 10) - 5;
-        // Diff offset for each gauge
-        int val = (int)(50 + 40 * sin(angle[i])) + noise;
-
-        // Clamp to Config Limits
-        if (val < gauge_configs[i].min_val) val = gauge_configs[i].min_val;
-        if (val > gauge_configs[i].max_val) val = gauge_configs[i].max_val;
-        
-        // Log the data (PSRAM only) - DISABLED
-        // log_add_point(val);
-
-        // Update Arc (Smooth animation)
-        lv_arc_set_value(gauge_arcs[i], val);
-        
-        // Update Digital Label
-        if (gauge_labels[i]) {
+    for (int i = start_idx; i < end_idx; i++) {
+        if (gauge_arcs[i] && gauge_labels[i]) {
+            // Simulate Data (Random Walk for demo)
+            // In real app, read sensors here using 'i' map
+            
+            // Logic: Just wiggle a bit around previous center or random
+            // For now, simple random for demo effect
+            int val = (rand() % (gauge_configs[i].max_val - gauge_configs[i].min_val + 1)) + gauge_configs[i].min_val;
+            
+            // Update Arc
+            lv_arc_set_value(gauge_arcs[i], val);
+            
+            // Update Label
             lv_label_set_text_fmt(gauge_labels[i], "%d", val);
-        }
-        
-        // Update Color Zones Logic
-        if (val < gauge_configs[i].blue_limit) {
-            lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0x00FFFF), LV_PART_INDICATOR); // Cyan
-        } else if (val < gauge_configs[i].yellow_limit) {
-            lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFFFF00), LV_PART_INDICATOR); // Yellow
-        } else {
-            lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFF0000), LV_PART_INDICATOR); // Red
+            
+            // Dynamic Color Logic
+            if (val <= gauge_configs[i].blue_limit) {
+                lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0x00FFFF), LV_PART_INDICATOR); // Cyan
+            } 
+            else if (val <= gauge_configs[i].yellow_limit) {
+                 lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFFFF00), LV_PART_INDICATOR); // Yellow
+            }
+            else {
+                lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFF0000), LV_PART_INDICATOR); // Red
+            }
         }
     }
     
-    // Refresh Trending Chart if visible (Just for 1st gauge? Or needs selector? Leave flat for now)
-    if (trending_screen && lv_obj_is_visible(trending_screen)) {
-         // update_trending_chart(); // Placeholder for actual chart update logic
+    // Update Chart if visible (Trend logic - simplified)
+    if (const_chart) {
+         lv_chart_set_next_value(const_chart, const_ser1, (rand() % 100));
+    }
+}
+
+// Navigation Callbacks
+static void next_page_cb(lv_event_t * e) {
+    if (current_page == 0) {
+        current_page = 1;
+        lv_obj_add_flag(grid_page_1, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(grid_page_2, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(btn_next, LV_OBJ_FLAG_HIDDEN); // Hide Next on Last Page
+        lv_obj_clear_flag(btn_prev, LV_OBJ_FLAG_HIDDEN); // Show Prev
+    }
+}
+
+static void prev_page_cb(lv_event_t * e) {
+    if (current_page == 1) {
+        current_page = 0;
+        lv_obj_add_flag(grid_page_2, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(grid_page_1, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(btn_prev, LV_OBJ_FLAG_HIDDEN); // Hide Prev on First Page
+        lv_obj_clear_flag(btn_next, LV_OBJ_FLAG_HIDDEN); // Show Next
     }
 }
 
@@ -954,25 +1036,65 @@ static void create_main_screen(void) {
         lv_obj_center(settings_lbl);
 
         // --- Grid Layout ---
-        // Create a Grid Container for gauges
-        // Width: 1280. Margins ~80px/side for future buttons.
-        // Usable width ~1120px. 1120/4 = 280px per col.
-        lv_obj_t * grid_cont = lv_obj_create(main_screen);
-        lv_obj_set_size(grid_cont, 1140, 720); // Compact container
-        lv_obj_align(grid_cont, LV_ALIGN_CENTER, 0, 20); // Centered, slightly down
-        lv_obj_set_style_bg_opa(grid_cont, 0, 0);
-        lv_obj_set_style_border_width(grid_cont, 0, 0);
-        
-        // Flex Layout (Wrap)
-        lv_obj_set_flex_flow(grid_cont, LV_FLEX_FLOW_ROW_WRAP);
-        lv_obj_set_flex_align(grid_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_BETWEEN); // Center items
-        lv_obj_set_style_pad_column(grid_cont, 10, 0);
-        lv_obj_set_style_pad_row(grid_cont, 10, 0);
+        // Page 1 Container
+        grid_page_1 = lv_obj_create(main_screen);
+        lv_obj_set_size(grid_page_1, 1140, 720); 
+        lv_obj_align(grid_page_1, LV_ALIGN_CENTER, 0, 20); 
+        lv_obj_set_style_bg_opa(grid_page_1, 0, 0);
+        lv_obj_set_style_border_width(grid_page_1, 0, 0);
+        lv_obj_set_flex_flow(grid_page_1, LV_FLEX_FLOW_ROW_WRAP);
+        lv_obj_set_flex_align(grid_page_1, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_BETWEEN); 
+        lv_obj_set_style_pad_column(grid_page_1, 10, 0);
+        lv_obj_set_style_pad_row(grid_page_1, 10, 0);
 
-        // Create 8 Widgets
+        // Populate Page 1 (Gauges 0-7)
         for(int i=0; i<8; i++) {
-             create_gas_widget(grid_cont, i);
+            create_gas_widget(grid_page_1, i);
         }
+        
+        // Page 2 Container (Initially Hidden)
+        grid_page_2 = lv_obj_create(main_screen);
+        lv_obj_set_size(grid_page_2, 1140, 720); 
+        lv_obj_align(grid_page_2, LV_ALIGN_CENTER, 0, 20); 
+        lv_obj_set_style_bg_opa(grid_page_2, 0, 0);
+        lv_obj_set_style_border_width(grid_page_2, 0, 0);
+        lv_obj_set_flex_flow(grid_page_2, LV_FLEX_FLOW_ROW_WRAP);
+        lv_obj_set_flex_align(grid_page_2, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_BETWEEN); 
+        lv_obj_set_style_pad_column(grid_page_2, 10, 0);
+        lv_obj_set_style_pad_row(grid_page_2, 10, 0);
+        lv_obj_add_flag(grid_page_2, LV_OBJ_FLAG_HIDDEN); // Start hidden
+
+        // Populate Page 2 (Gauges 8-15)
+        for(int i=8; i<16; i++) {
+            create_gas_widget(grid_page_2, i);
+        }
+        
+        // --- Navigation Buttons ---
+        
+        // Next Button (Right Side)
+        btn_next = lv_btn_create(main_screen);
+        lv_obj_set_size(btn_next, 60, 100);
+        lv_obj_align(btn_next, LV_ALIGN_RIGHT_MID, 0, 0); // Right edge
+        lv_obj_set_style_bg_color(btn_next, lv_color_hex(0x202020), 0);
+        lv_obj_set_style_radius(btn_next, 10, 0); // Rounded
+        lv_obj_add_event_cb(btn_next, next_page_cb, LV_EVENT_CLICKED, NULL);
+        
+        lv_obj_t * lbl_next = lv_label_create(btn_next);
+        lv_label_set_text(lbl_next, LV_SYMBOL_RIGHT);
+        lv_obj_center(lbl_next);
+        
+        // Prev Button (Left Side) - Initially Hidden
+        btn_prev = lv_btn_create(main_screen);
+        lv_obj_set_size(btn_prev, 60, 100);
+        lv_obj_align(btn_prev, LV_ALIGN_LEFT_MID, 0, 0); // Left edge
+        lv_obj_set_style_bg_color(btn_prev, lv_color_hex(0x202020), 0);
+        lv_obj_set_style_radius(btn_prev, 10, 0); 
+        lv_obj_add_event_cb(btn_prev, prev_page_cb, LV_EVENT_CLICKED, NULL);
+        lv_obj_add_flag(btn_prev, LV_OBJ_FLAG_HIDDEN); // Start hidden
+        
+        lv_obj_t * lbl_prev = lv_label_create(btn_prev);
+        lv_label_set_text(lbl_prev, LV_SYMBOL_LEFT);
+        lv_obj_center(lbl_prev);
         
         // Start Update Timer
         lv_timer_create(gas_update_timer_cb, 100, NULL);
@@ -1001,8 +1123,8 @@ void app_main(void)
     // Init Logging (PSRAM)
     // init_logging(); // Assuming this is defined elsewhere if needed
     
-    // Init Configs
-    init_gauge_configs();
+    // Init Configs (Load from NVS)
+    load_gauge_configs();
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.3.6
+- **16-Gauge Expansion:** Support for 16 gauges across 2 pages.
+- **Paging Support:** Navigation buttons (Next/Prev) with automatic rendering optimization.
+- **NVS Robustness:** Added sanity checks to startup to fix invalid 0-0 ranges from legacy saves.
+- **UI Refinement:** Value alignment centered (-3px correction) and animation flicker fixed on page switch.
+- **Settings:** Configuration dropdown supports all 16 gauges.
+## [v0.3.5] - 2025-12-09
+### Added
+- **NVS Persistence**: Gauge settings (Name, Unit, Limits) are now automatically saved to NVS and loaded on boot.
+- **Improved Settings UI**: Compacted row height and text area size to ensure on-screen keyboard visibility without scrolling.
+
 ## [v0.3.4] - 2025-12-09
 ### Added
 - **8-Gauge Grid**: Implemented 4x2 grid layout supporting 8 simultaneous gauges.

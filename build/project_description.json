@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "lvgl_sw_rotation",
-    "project_version":    "v0.3.3-dirty",
+    "project_version":    "v0.3.4-dirty",
     "project_path":       "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge",
     "idf_path":           "/Users/amuthesan/esp/v5.4.1/esp-idf",
     "build_dir":          "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build",
