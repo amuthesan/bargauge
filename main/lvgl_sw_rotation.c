@@ -430,25 +430,24 @@ static esp_err_t bsp_display_backlight_on(void)
 
 // --- Configuration Structure ---
 typedef struct {
+    char name[32];    // Gauge Name
+    char unit[16];    // Gauge Unit (e.g. "PPM")
     int min_val;
     int max_val;
     int blue_limit;   // 0 to blue_limit (Cyan)
     int yellow_limit; // blue_limit to yellow_limit (Yellow)
     int red_limit;    // yellow_limit to red_limit (Warning?? No, usually Red starts here)
-                      // User Req: 
-                      // Blue Zone: from min until C
-                      // Yellow Zone: from C until X
-                      // Red Zone: from X to max
     int threshold;    // Future use
 } GasGaugeConfig;
 
 static GasGaugeConfig methane_config = {
+    .name = "METHANE",
+    .unit = "PPM",
     .min_val = 0,
     .max_val = 100,
     .blue_limit = 30, // 0-30 Cyan
-    .yellow_limit = 70, // 30-70 Yellow, so 70 is end of yellow/start of red? 
-                        // Let's interpret: < 30 Cyan, < 70 Yellow, >= 70 Red.
-    .red_limit = 100,  // unused if logic is "rest is red"
+    .yellow_limit = 70, // 30-70 Yellow
+    .red_limit = 100,  // unused
     .threshold = 80
 };
 
@@ -461,12 +460,15 @@ static void create_main_screen(void);
 // Global/Static references for updates
 static lv_obj_t * const_arc = NULL;
 static lv_obj_t * const_val_label = NULL;
+static lv_obj_t * const_title_lbl = NULL; // To update name
+static lv_obj_t * const_unit_lbl = NULL; // To update unit
 static lv_obj_t * const_chart = NULL;
 static lv_chart_series_t * const_ser1 = NULL;
 
 static lv_obj_t * main_screen = NULL;
 static lv_obj_t * trending_screen = NULL;
 static lv_obj_t * settings_screen = NULL;
+static lv_obj_t * kb = NULL; // Global keyboard
 
 static void trending_btn_event_cb(lv_event_t * e) {
     if (trending_screen == NULL) {
@@ -490,138 +492,189 @@ static void back_from_trending_cb(lv_event_t * e) {
 
 static void back_from_settings_cb(lv_event_t * e) {
     if (main_screen) {
+        // Update Title if changed
+        if (const_title_lbl) {
+            lv_label_set_text(const_title_lbl, methane_config.name);
+        }
+        // Update Unit if changed
+        if (const_unit_lbl) {
+            lv_label_set_text(const_unit_lbl, methane_config.unit);
+        }
         lv_scr_load_anim(main_screen, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 500, 0, false);
     }
 }
 
-// --- Spinbox Event Handlers ---
-static void spinbox_increment_event_cb(lv_event_t * e) {
+// --- Keyboard Event Handlers ---
+static void ta_event_cb(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_SHORT_CLICKED || code == LV_EVENT_LONG_PRESSED_REPEAT) {
-        lv_obj_t * spinbox = lv_event_get_user_data(e);
-        lv_spinbox_increment(spinbox);
+    lv_obj_t * ta = lv_event_get_target(e);
+    
+    if(code == LV_EVENT_CLICKED || code == LV_EVENT_FOCUSED) {
+        // Focus keyboard on this text area
+        if(kb != NULL) {
+            lv_keyboard_set_textarea(kb, ta);
+            lv_obj_clear_flag(kb, LV_OBJ_FLAG_HIDDEN);
+            
+            // Set keyboard mode based on content
+            // Name field -> Text mode
+            // Others -> Number mode
+            // We can differentiate by User Data passed
+            long mode = (long)lv_event_get_user_data(e);
+            if (mode == 1) { // Name or Unit
+                lv_keyboard_set_mode(kb, LV_KEYBOARD_MODE_TEXT_LOWER);
+            } else { // Numbers
+                lv_keyboard_set_mode(kb, LV_KEYBOARD_MODE_NUMBER);
+            }
+        }
+    } else if(code == LV_EVENT_DEFOCUSED) {
+        lv_keyboard_set_textarea(kb, NULL);
+        lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
-static void spinbox_decrement_event_cb(lv_event_t * e) {
+static void kb_event_cb(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_SHORT_CLICKED || code == LV_EVENT_LONG_PRESSED_REPEAT) {
-        lv_obj_t * spinbox = lv_event_get_user_data(e);
-        lv_spinbox_decrement(spinbox);
+    lv_obj_t * k = lv_event_get_target(e);
+    if(code == LV_EVENT_READY || code == LV_EVENT_CANCEL) {
+       lv_keyboard_set_textarea(k, NULL);
+       lv_obj_add_flag(k, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
-static void min_val_event_cb(lv_event_t * e) {
-    lv_obj_t * spinbox = lv_event_get_target(e);
-    methane_config.min_val = (int)lv_spinbox_get_value(spinbox);
+// --- Value Update Handlers ---
+static void name_ta_cb(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_VALUE_CHANGED) {
+        lv_obj_t * ta = lv_event_get_target(e);
+        const char * txt = lv_textarea_get_text(ta);
+        snprintf(methane_config.name, sizeof(methane_config.name), "%s", txt);
+    }
+    ta_event_cb(e); // Chain to standard handler
 }
 
-static void max_val_event_cb(lv_event_t * e) {
-    lv_obj_t * spinbox = lv_event_get_target(e);
-    methane_config.max_val = (int)lv_spinbox_get_value(spinbox);
+static void unit_ta_cb(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_VALUE_CHANGED) {
+        lv_obj_t * ta = lv_event_get_target(e);
+        const char * txt = lv_textarea_get_text(ta);
+        snprintf(methane_config.unit, sizeof(methane_config.unit), "%s", txt);
+    }
+    ta_event_cb(e); // Chain to standard handler
 }
 
-static void blue_limit_event_cb(lv_event_t * e) {
-    lv_obj_t * spinbox = lv_event_get_target(e);
-    methane_config.blue_limit = (int)lv_spinbox_get_value(spinbox);
+static void int_val_ta_cb(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_VALUE_CHANGED) {
+        lv_obj_t * ta = lv_event_get_target(e);
+        /* Identify which field to update by user_data pointer to int* */
+        int * target_ptr = (int*)lv_event_get_user_data(e);
+        
+        const char * txt = lv_textarea_get_text(ta);
+        if (target_ptr) {
+            *target_ptr = atoi(txt);
+        }
+    }
+    
+    // Manual Keyboard Logic since we hijacked user_data
+    if(code == LV_EVENT_CLICKED || code == LV_EVENT_FOCUSED) {
+        lv_obj_t * ta = lv_event_get_target(e);
+        if(kb) {
+            lv_keyboard_set_textarea(kb, ta);
+            lv_obj_clear_flag(kb, LV_OBJ_FLAG_HIDDEN);
+            lv_keyboard_set_mode(kb, LV_KEYBOARD_MODE_NUMBER);
+        }
+    } else if(code == LV_EVENT_DEFOCUSED) {
+        if(kb) {
+             lv_keyboard_set_textarea(kb, NULL);
+             lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
 }
 
-static void yellow_limit_event_cb(lv_event_t * e) {
-    lv_obj_t * spinbox = lv_event_get_target(e);
-    methane_config.yellow_limit = (int)lv_spinbox_get_value(spinbox);
-}
-
-static void threshold_event_cb(lv_event_t * e) {
-    lv_obj_t * spinbox = lv_event_get_target(e);
-    methane_config.threshold = (int)lv_spinbox_get_value(spinbox);
-}
-
-static lv_obj_t * create_spinbox_row(lv_obj_t * parent, const char * title, int min, int max, int current, lv_event_cb_t cb) {
+// Helper to create valid TA row
+static void create_config_row(lv_obj_t * parent, const char * title, char * text_buffer, int * int_ptr, int type) {
+    // Type 0: Int, 1: Name, 2: Unit
     lv_obj_t * cont = lv_obj_create(parent);
-    lv_obj_set_size(cont, 380, 50);
+    lv_obj_set_size(cont, 780, 70); // Wider, taller
     lv_obj_set_style_bg_opa(cont, 0, 0);
     lv_obj_set_style_border_width(cont, 0, 0);
-    lv_obj_set_style_pad_all(cont, 0, 0);
+    lv_obj_set_style_pad_all(cont, 5, 0);
     lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(cont, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     lv_obj_t * lbl = lv_label_create(cont);
     lv_label_set_text(lbl, title);
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_24, 0); // Large font
     lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
 
-    // Spinbox container
-    lv_obj_t * right_box = lv_obj_create(cont);
-    lv_obj_set_size(right_box, 160, 40);
-    lv_obj_set_style_bg_opa(right_box, 0, 0);
-    lv_obj_set_style_border_width(right_box, 0, 0);
-    lv_obj_set_style_pad_all(right_box, 0, 0);
-    lv_obj_set_flex_flow(right_box, LV_FLEX_FLOW_ROW);
+    lv_obj_t * ta = lv_textarea_create(cont);
+    lv_obj_set_size(ta, 300, 50);
+    lv_obj_set_style_text_font(ta, &lv_font_montserrat_24, 0); // Large font
+    lv_textarea_set_one_line(ta, true);
     
-    lv_obj_t * spinbox = lv_spinbox_create(right_box);
-    lv_spinbox_set_range(spinbox, min, max);
-    lv_spinbox_set_digit_format(spinbox, 4, 0);
-    lv_spinbox_step_prev(spinbox);
-    lv_obj_set_width(spinbox, 70);
-    lv_obj_center(spinbox);
-    lv_spinbox_set_value(spinbox, current);
-    lv_obj_add_event_cb(spinbox, cb, LV_EVENT_VALUE_CHANGED, NULL);
-    
-    lv_obj_t * btn_minus = lv_btn_create(right_box);
-    lv_obj_set_size(btn_minus, 35, 35);
-    lv_obj_set_style_bg_color(btn_minus, lv_color_hex(0x404040), 0);
-    lv_obj_add_event_cb(btn_minus, spinbox_decrement_event_cb, LV_EVENT_ALL, spinbox);
-    lv_obj_t * lbl_minus = lv_label_create(btn_minus);
-    lv_label_set_text(lbl_minus, "-");
-    lv_obj_center(lbl_minus);
-
-    lv_obj_t * btn_plus = lv_btn_create(right_box);
-    lv_obj_set_size(btn_plus, 35, 35);
-    lv_obj_set_style_bg_color(btn_plus, lv_color_hex(0x404040), 0);
-    lv_obj_add_event_cb(btn_plus, spinbox_increment_event_cb, LV_EVENT_ALL, spinbox);
-    lv_obj_t * lbl_plus = lv_label_create(btn_plus);
-    lv_label_set_text(lbl_plus, "+");
-    lv_obj_center(lbl_plus);
-
-    return cont;
+    if (type == 1) { // Name
+        lv_textarea_set_text(ta, text_buffer);
+        lv_textarea_set_max_length(ta, 31);
+        lv_obj_add_event_cb(ta, name_ta_cb, LV_EVENT_ALL, (void*)1); 
+    } else if (type == 2) { // Unit
+        lv_textarea_set_text(ta, text_buffer);
+        lv_textarea_set_max_length(ta, 15);
+        lv_obj_add_event_cb(ta, unit_ta_cb, LV_EVENT_ALL, (void*)1); 
+    } else { // Int
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%d", *int_ptr);
+        lv_textarea_set_text(ta, buf);
+        lv_textarea_set_max_length(ta, 4); // Max 4 digits
+        // Pass int pointer as User Data
+        lv_obj_add_event_cb(ta, int_val_ta_cb, LV_EVENT_ALL, (void*)int_ptr); 
+    }
 }
 
 static void create_settings_screen(void) {
     settings_screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(settings_screen, lv_color_hex(0x000000), 0);
     lv_obj_set_flex_flow(settings_screen, LV_FLEX_FLOW_COLUMN);
+    // Align Start so we can scroll if needed, but centering horizontally
     lv_obj_set_flex_align(settings_screen, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_all(settings_screen, 20, 0);
 
     // Header
     lv_obj_t * header = lv_label_create(settings_screen);
     lv_label_set_text(header, "Configuration");
-    lv_obj_set_style_text_font(header, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(header, &lv_font_montserrat_32, 0); // Larger Header
     lv_obj_set_style_text_color(header, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_pad_bottom(header, 20, 0);
+    lv_obj_set_style_pad_bottom(header, 30, 0);
 
-    // Dropdown (Mockup for now as we only have 1 gauge)
-    lv_obj_t * dd = lv_dropdown_create(settings_screen);
-    lv_dropdown_set_options(dd, "Methane Sensor");
-    lv_obj_set_width(dd, 200);
+    // Rows
+    create_config_row(settings_screen, "Gauge Name", methane_config.name, NULL, 1);
+    create_config_row(settings_screen, "Gauge Unit", methane_config.unit, NULL, 2);
+    create_config_row(settings_screen, "Min Value", NULL, &methane_config.min_val, 0);
+    create_config_row(settings_screen, "Max Value", NULL, &methane_config.max_val, 0);
+    create_config_row(settings_screen, "Blue Limit", NULL, &methane_config.blue_limit, 0);
+    create_config_row(settings_screen, "Yellow Limit", NULL, &methane_config.yellow_limit, 0);
 
-    // Spinboxes
-    create_spinbox_row(settings_screen, "Min Value", -999, 9999, methane_config.min_val, min_val_event_cb);
-    create_spinbox_row(settings_screen, "Max Value", 0, 9999, methane_config.max_val, max_val_event_cb);
-    create_spinbox_row(settings_screen, "Blue Limit", 0, 9999, methane_config.blue_limit, blue_limit_event_cb);
-    create_spinbox_row(settings_screen, "Yellow Limit", 0, 9999, methane_config.yellow_limit, yellow_limit_event_cb);
-    create_spinbox_row(settings_screen, "Threshold", 0, 9999, methane_config.threshold, threshold_event_cb);
-
-    // Back Button
+    // Back Button (At bottom of scroll)
     lv_obj_t * btn = lv_btn_create(settings_screen);
-    lv_obj_set_size(btn, 120, 50);
+    lv_obj_set_size(btn, 200, 60);
     lv_obj_add_event_cb(btn, back_from_settings_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_set_style_bg_color(btn, lv_color_hex(0x202020), 0);
     lv_obj_set_style_border_color(btn, lv_color_hex(0x505050), 0);
-    lv_obj_set_style_border_width(btn, 1, 0);
+    lv_obj_set_style_border_width(btn, 2, 0);
+    lv_obj_set_style_margin_top(btn, 20, 0);
     
     lv_obj_t * lbl = lv_label_create(btn);
     lv_label_set_text(lbl, LV_SYMBOL_UP " Back");
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
     lv_obj_center(lbl);
+    
+    // Keyboard (Create last so it's on top)
+    kb = lv_keyboard_create(settings_screen);
+    lv_obj_set_size(kb, 800, 300); // Half Screen
+    lv_obj_align(kb, LV_ALIGN_BOTTOM_MID, 0, 0); // Stick to bottom
+    lv_keyboard_set_mode(kb, LV_KEYBOARD_MODE_NUMBER);
+    lv_obj_add_event_cb(kb, kb_event_cb, LV_EVENT_ALL, NULL);
+    lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN); // Hide initially
 }
 
 static lv_obj_t* create_gas_widget(lv_obj_t *parent) {
@@ -665,17 +718,21 @@ static lv_obj_t* create_gas_widget(lv_obj_t *parent) {
 
     // 4. Label "METHANE"
     lv_obj_t * title_lbl = lv_label_create(container);
-    lv_label_set_text(title_lbl, "METHANE");
+    lv_label_set_text(title_lbl, methane_config.name); // Dynamic Name
     lv_obj_set_style_text_font(title_lbl, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(title_lbl, lv_color_hex(0xAAAAAA), 0);
     lv_obj_align(title_lbl, LV_ALIGN_CENTER, 0, -50);
+    
+    const_title_lbl = title_lbl;
 
     // 5. Label "PPM"
     lv_obj_t * unit_lbl = lv_label_create(container);
-    lv_label_set_text(unit_lbl, "PPM");
+    lv_label_set_text(unit_lbl, methane_config.unit); // Dynamic Unit
     lv_obj_set_style_text_font(unit_lbl, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(unit_lbl, lv_color_hex(0xAAAAAA), 0);
     lv_obj_align(unit_lbl, LV_ALIGN_CENTER, 0, 30);
+    
+    const_unit_lbl = unit_lbl;
 
     // 6. Trending Button
     lv_obj_t * btn = lv_btn_create(container);

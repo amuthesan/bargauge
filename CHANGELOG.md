@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.2] - 2025-12-09
+### Added
+- **Configurable Units**: Added "Gauge Unit" field to settings (e.g. PPM, %, Volts).
+- **Dynamic Labels**: Main screen unit label updates immediately upon configuration change.
+
+## [v0.3.1] - 2025-12-09
+### Added
+- **Settings UI Polish**: Replaced +/- spinboxes with modern `lv_textarea` input fields.
+- **On-Screen Keyboard**: Automatic virtual keyboard for entering names and numbers.
+- **Gauge Naming**: Added "Gauge Name" field to rename the sensor (e.g. "Methane").
+- **Layout Refinements**: Widen settings rows and increased font sizes for better readability.
+
 ## [v0.3.0] - 2025-12-09
 ### Added
 - **VolosR Style Redesign**: Complete UI overhaul with dark theme and large arc gauge.
