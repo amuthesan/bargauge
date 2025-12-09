@@ -1,0 +1,2 @@
+source /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/gdbinit/symbols
+source /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/gdbinit/connect

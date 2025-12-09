@@ -1,0 +1,384 @@
+ESP-ROM:esp32p4-eco2-20240710
+Build:Jul 10 2024
+rst:0x1 (POWERON),boot:0x30f (SPI_FAST_FLASH_BOOT)
+SPI mode:DIO, clock div:1
+load:0x4ff33ce0,len:0x177c
+load:0x4ff2abd0,len:0xf20
+load:0x4ff2cbd0,len:0x33fc
+entry 0x4ff2abda
+[0;32mI (25) boot: ESP-IDF v5.4.1-dirty 2nd stage bootloader[0m
+[0;32mI (26) boot: compile time Dec  9 2025 16:24:54[0m
+[0;32mI (26) boot: Multicore bootloader[0m
+[0;32mI (27) boot: chip revision: v1.3[0m
+[0;32mI (29) boot: efuse block revision: v0.3[0m
+[0;32mI (33) qio_mode: Enabling default flash chip QIO[0m
+[0;32mI (37) boot.esp32p4: SPI Speed      : 80MHz[0m
+[0;32mI (41) boot.esp32p4: SPI Mode       : QIO[0m
+[0;32mI (45) boot.esp32p4: SPI Flash Size : 16MB[0m
+[0;32mI (49) boot: Enabling RNG early entropy source...[0m
+[0;32mI (53) boot: Partition Table:[0m
+[0;32mI (56) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (62) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (68) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (75) boot:  2 factory          factory app      00 00 00010000 00800000[0m
+[0;32mI (81) boot:  3 storage          Unknown data     01 82 00810000 00700000[0m
+[0;32mI (89) boot: End of partition table[0m
+[0;32mI (91) esp_image: segment 0: paddr=00010020 vaddr=400c0020 size=43514h (275732) map[0m
+[0;32mI (142) esp_image: segment 1: paddr=0005353c vaddr=30100000 size=00068h (   104) load[0m
+[0;32mI (144) esp_image: segment 2: paddr=000535ac vaddr=4ff00000 size=0ca6ch ( 51820) load[0m
+[0;32mI (156) esp_image: segment 3: paddr=00060020 vaddr=40000020 size=bbc6ch (769132) map[0m
+[0;32mI (276) esp_image: segment 4: paddr=0011bc94 vaddr=4ff0ca6c size=06138h ( 24888) load[0m
+[0;32mI (282) esp_image: segment 5: paddr=00121dd4 vaddr=4ff12c00 size=03d00h ( 15616) load[0m
+[0;32mI (286) esp_image: segment 6: paddr=00125adc vaddr=50108080 size=0001ch (    28) load[0m
+[0;32mI (292) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (292) boot: Disabling RNG early entropy source...[0m
+[0;32mI (309) hex_psram: vendor id    : 0x0d (AP)[0m
+[0;32mI (309) hex_psram: Latency      : 0x01 (Fixed)[0m
+[0;32mI (309) hex_psram: DriveStr.    : 0x00 (25 Ohm)[0m
+[0;32mI (310) hex_psram: dev id       : 0x03 (generation 4)[0m
+[0;32mI (315) hex_psram: density      : 0x07 (256 Mbit)[0m
+[0;32mI (319) hex_psram: good-die     : 0x06 (Pass)[0m
+[0;32mI (323) hex_psram: SRF          : 0x02 (Slow Refresh)[0m
+[0;32mI (328) hex_psram: BurstType    : 0x00 ( Wrap)[0m
+[0;32mI (332) hex_psram: BurstLen     : 0x03 (2048 Byte)[0m
+[0;32mI (337) hex_psram: BitMode      : 0x01 (X16 Mode)[0m
+[0;32mI (341) hex_psram: Readlatency  : 0x04 (14 cycles@Fixed)[0m
+[0;32mI (346) hex_psram: DriveStrength: 0x00 (1/1)[0m
+[0;32mI (350) MSPI DQS: tuning success, best phase id is 2[0m
+[0;32mI (533) MSPI DQS: tuning success, best delayline id is 11[0m
+[0;32mI (533) esp_psram: Found 32MB PSRAM device[0m
+[0;32mI (533) esp_psram: Speed: 200MHz[0m
+[0;32mI (534) hex_psram: psram CS IO is dedicated[0m
+[0;32mI (537) cpu_start: Multicore app[0m
+[0;32mI (1491) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1501) cpu_start: Pro cpu start user code[0m
+[0;32mI (1501) cpu_start: cpu freq: 360000000 Hz[0m
+[0;32mI (1501) app_init: Application information:[0m
+[0;32mI (1501) app_init: Project name:     lvgl_sw_rotation[0m
+[0;32mI (1506) app_init: App version:      1[0m
+[0;32mI (1509) app_init: Compile time:     Dec  9 2025 16:24:12[0m
+[0;32mI (1514) app_init: ELF file SHA256:  cf3fd618e...[0m
+[0;32mI (1519) app_init: ESP-IDF:          v5.4.1-dirty[0m
+[0;32mI (1523) efuse_init: Min chip rev:     v0.1[0m
+[0;32mI (1527) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (1531) efuse_init: Chip rev:         v1.3[0m
+[0;32mI (1535) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1542) heap_init: At 4FF2B170 len 0000FE50 (63 KiB): RAM[0m
+[0;32mI (1547) heap_init: At 4FF3AFC0 len 00004BF0 (18 KiB): RAM[0m
+[0;32mI (1552) heap_init: At 4FF40000 len 00060000 (384 KiB): RAM[0m
+[0;32mI (1557) heap_init: At 5010809C len 00007F64 (31 KiB): RTCRAM[0m
+[0;32mI (1563) heap_init: At 30100068 len 00001F98 (7 KiB): TCM[0m
+[0;32mI (1568) esp_psram: Adding pool of 32768K of PSRAM memory to heap allocator[0m
+[0;32mI (1575) spi_flash: detected chip: generic[0m
+[0;32mI (1578) spi_flash: flash io: qio[0m
+[0;32mI (1581) host_init: ESP Hosted : Host chip_ip[18][0m
+[0;32mI (1618) H_API: ESP-Hosted starting. Hosted_Tasks: prio:23, stack: 5120 RPC_task_stack: 5120[0m
+[0;32mI (1618) H_API: ** add_esp_wifi_remote_channels **[0m
+[0;32mI (1620) gpio: GPIO[18]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1628) gpio: GPIO[19]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1636) gpio: GPIO[14]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1645) gpio: GPIO[15]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1653) gpio: GPIO[16]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1662) gpio: GPIO[17]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1671) H_SDIO_DRV: sdio_data_to_rx_buf_task started[0m
+[0;32mI (1671) main_task: Started on CPU0[0m
+[0;32mI (1681) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1691) main_task: Calling app_main()[0m
+[0;32mI (1701) transport: Attempt connection with slave: retry[0][0m
+[0;33mW (1701) H_SDIO_DRV: Reset slave using GPIO[54][0m
+[0;32mI (1701) os_wrapper_esp: GPIO [54] configured[0m
+[0;32mI (1701) gpio: GPIO[54]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (3231) sdio_wrapper: SDIO master: Slot 1, Data-Lines: 4-bit Freq(KHz)[40000 KHz][0m
+[0;32mI (3231) sdio_wrapper: GPIOs: CLK[18] CMD[19] D0[14] D1[15] D2[16] D3[17] Slave_Reset[54][0m
+[0;32mI (3231) sdio_wrapper: Queues: Tx[20] Rx[20] SDIO-Rx-Mode[1][0m
+[0;32mI (3271) gpio: GPIO[15]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (3271) gpio: GPIO[17]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (3271) sdio_wrapper: Function 0 Blocksize: 512[0m
+[0;32mI (3281) sdio_wrapper: Function 1 Blocksize: 512[0m
+[0;32mI (3381) H_SDIO_DRV: Card init success, TRANSPORT_RX_ACTIVE[0m
+[0;32mI (3381) transport: set_transport_state: 1[0m
+[0;32mI (3381) transport: Waiting for esp_hosted slave to be ready[0m
+[0;32mI (3471) H_SDIO_DRV: SDIO Host operating in STREAMING MODE[0m
+[0;32mI (3471) H_SDIO_DRV: Open data path at slave[0m
+[0;32mI (3471) H_SDIO_DRV: Starting SDIO process rx task[0m
+[0;32mI (3471) H_SDIO_DRV: Received ESP_PRIV_IF type message[0m
+[0;32mI (3471) transport: Received INIT event from ESP32 peripheral[0m
+[0;32mI (3481) transport: EVENT: 12[0m
+[0;32mI (3481) transport: Identified slave [esp32c6][0m
+[0;32mI (3481) transport: EVENT: 11[0m
+[0;32mI (3491) transport: capabilities: 0xd[0m
+[0;32mI (3491) transport: Features supported are:[0m
+[0;32mI (3491) transport: 	 * WLAN[0m
+[0;32mI (3501) transport: 	   - HCI over SDIO[0m
+[0;32mI (3501) transport: 	   - BLE only[0m
+[0;32mI (3501) transport: EVENT: 13[0m
+[0;33mW (3511) transport: Version mismatch: Host [2.7.0] > Co-proc [0.0.0] ==> Upgrade co-proc to avoid RPC timeouts[0m
+[0;32mI (3521) transport: ESP board type is : 13 [0m
+
+[0;32mI (3521) transport: Base transport is set-up, TRANSPORT_TX_ACTIVE[0m
+[0;32mI (3531) H_API: Transport active[0m
+[0;32mI (3531) transport: Slave chip Id[12][0m
+[0;32mI (3531) transport: raw_tp_dir[-], flow_ctrl: low[60] high[80][0m
+[0;32mI (3541) transport: transport_delayed_init[0m
+[0;32mI (3541) esp_cli: Remove any existing deep_sleep cmd in cli[0m
+[0;32mI (3551) esp_cli: Registering command: crash[0m
+[0;32mI (3551) esp_cli: Registering command: reboot[0m
+[0;32mI (3561) esp_cli: Registering command: mem-dump[0m
+[0;32mI (3561) esp_cli: Registering command: task-dump[0m
+[0;32mI (3561) esp_cli: Registering command: cpu-dump[0m
+[0;32mI (3571) esp_cli: Registering command: heap-trace[0m
+[0;32mI (3571) esp_cli: Registering command: sock-dump[0m
+[0;32mI (3581) esp_cli: Registering command: host-power-save[0m
+[0;32mI (3581) hci_stub_drv: Host BT Support: Disabled[0m
+[0;32mI (3591) H_SDIO_DRV: Received INIT event[0m
+[0;32mI (3591) H_SDIO_DRV: Event type: 0x22[0m
+[0;32mI (3591) H_SDIO_DRV: Write thread started[0m
+[0;32mI (3671) RPC_WRAP: --- ESP Event: Slave ESP Init ---[0m
+[0;32mI (3901) BarGauge: WiFi initialization complete[0m
+[0;32mI (3901) BarGauge: SNTP initialized[0m
+[0;33mW (3901) i2c.master: Please check pull-up resistances whether be connected properly. Otherwise unexpected behavior would happen. For more detailed information, please read docs[0m
+[0;32mI (3911) RPC_WRAP: ESP Event: wifi station started[0m
+[0;32mI (3921) BarGauge: MIPI DSI PHY Powered on[0m
+[0;32mI (3921) BarGauge: Install MIPI DSI LCD control panel[0m
+[0;32mI (3931) BarGauge: Install LCD driver of st7701[0m
+[0;32mI (3931) jd9365: version: 1.0.2[0m
+[0;32mI (3931) gpio: GPIO[27]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (4141) jd9365: LCD ID: 93 65 04[0m
+[0;32mI (4261) BarGauge: Starting app_main...[0m
+[0;32mI (4261) gpio: GPIO[22]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;33mW (4261) gsl3680: Unable to initialize the I2C address[0m
+[0;32mI (4321) gsl3680: init gls3680[0m
+[0;32mI (4321) gsl3680: gsl3680 connect[0m
+[0;32mI (4321) gsl3680: gsl3680 read reg 0xf0 before is 0 0 0 0[0m
+[0;32mI (4341) gsl3680: gsl3680 writing 0xf0 0x12[0m
+[0;32mI (4361) gsl3680: gsl3680 read reg 0xf0 after is 12 34 56 0[0m
+[0;32mI (4361) gsl3680: start init[0m
+[0;32mI (4361) gsl3680: clear reg[0m
+[0;32mI (4481) gsl3680: start load fw[0m
+[0;32mI (4931) H_API: esp_wifi_remote_connect[0m
+[0;33mW (4961) rpc_rsp: Hosted RPC_Resp [0x21a], uid [7], resp code [12295][0m
+[0;32mI (5311) gsl3680: load fw success[0m
+[0;32mI (5311) gsl3680: enter[0m
+[0;32mI (5321) gsl_point_id: gsl_DataInit[0m
+[0;32mI (5381) gsl3680: enter[0m
+[0;32mI (5391) gsl_point_id: gsl_DataInit[0m
+[0;32mI (5391) gsl3680: enter read_ram_fw[0m
+[0;32mI (5421) gsl3680: gsl3680 startup_chip failed read 0xb0 = 5a,5a,5a,5a [0m
+[0;32mI (5421) gpio: GPIO[21]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:2 [0m
+[0;32mI (5421) BarGauge: interface is 1[0m
+[0;32mI (5421) lv_port: Create LVGL task[0m
+[0;32mI (5461) BarGauge: Setting LCD backlight: 100%[0m
+[0;32mI (5521) BarGauge: Setting LCD backlight: 100%[0m
+[0;32mI (5521) main_task: Returned from app_main()[0m
+[0;32mI (7331) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (7331) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (7331) H_API: esp_wifi_remote_connect[0m
+[0;32mI (9741) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (9741) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (9741) H_API: esp_wifi_remote_connect[0m
+[0;32mI (12151) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (12151) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (12151) H_API: esp_wifi_remote_connect[0m
+[0;32mI (14571) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (14571) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (14571) H_API: esp_wifi_remote_connect[0m
+[0;32mI (16981) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (16981) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (16981) H_API: esp_wifi_remote_connect[0m
+[0;32mI (19401) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (19401) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (19401) H_API: esp_wifi_remote_connect[0m
+[0;32mI (21811) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (21811) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (21811) H_API: esp_wifi_remote_connect[0m
+[0;32mI (24221) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (24221) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (24221) H_API: esp_wifi_remote_connect[0m
+[0;32mI (26641) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (26641) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (26641) H_API: esp_wifi_remote_connect[0m
+[0;32mI (29051) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (29051) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (29051) H_API: esp_wifi_remote_connect[0m
+[0;32mI (31461) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (31461) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (31461) H_API: esp_wifi_remote_connect[0m
+[0;32mI (33881) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (33881) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (33881) H_API: esp_wifi_remote_connect[0m
+[0;32mI (36291) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (36291) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (36291) H_API: esp_wifi_remote_connect[0m
+[0;32mI (38711) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (38711) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (38711) H_API: esp_wifi_remote_connect[0m
+[0;32mI (41121) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (41121) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (41121) H_API: esp_wifi_remote_connect[0m
+[0;32mI (43531) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (43531) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (43531) H_API: esp_wifi_remote_connect[0m
+[0;32mI (45951) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (45951) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (45951) H_API: esp_wifi_remote_connect[0m
+[0;32mI (48361) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (48361) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (48361) H_API: esp_wifi_remote_connect[0m
+[0;32mI (50781) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (50781) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (50781) H_API: esp_wifi_remote_connect[0m
+[0;32mI (53191) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (53191) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (53191) H_API: esp_wifi_remote_connect[0m
+[0;32mI (55601) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (55601) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (55601) H_API: esp_wifi_remote_connect[0m
+[0;32mI (58021) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (58021) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (58021) H_API: esp_wifi_remote_connect[0m
+[0;32mI (60431) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (60431) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (60431) H_API: esp_wifi_remote_connect[0m
+[0;32mI (62851) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (62851) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (62851) H_API: esp_wifi_remote_connect[0m
+[0;32mI (65261) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (65261) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (65261) H_API: esp_wifi_remote_connect[0m
+[0;32mI (67671) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (67671) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (67671) H_API: esp_wifi_remote_connect[0m
+[0;32mI (70091) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (70091) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (70091) H_API: esp_wifi_remote_connect[0m
+[0;32mI (72501) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (72501) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (72501) H_API: esp_wifi_remote_connect[0m
+[0;32mI (74911) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (74911) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (74911) H_API: esp_wifi_remote_connect[0m
+[0;32mI (77331) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (77331) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (77331) H_API: esp_wifi_remote_connect[0m
+[0;32mI (79741) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (79741) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (79741) H_API: esp_wifi_remote_connect[0m
+[0;32mI (82161) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (82161) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (82161) H_API: esp_wifi_remote_connect[0m
+[0;32mI (84571) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (84571) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (84571) H_API: esp_wifi_remote_connect[0m
+[0;32mI (86981) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (86981) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (86981) H_API: esp_wifi_remote_connect[0m
+[0;32mI (89401) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (89401) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (89401) H_API: esp_wifi_remote_connect[0m
+[0;32mI (91811) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (91811) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (91811) H_API: esp_wifi_remote_connect[0m
+[0;32mI (94221) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (94221) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (94221) H_API: esp_wifi_remote_connect[0m
+[0;32mI (96641) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (96641) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (96641) H_API: esp_wifi_remote_connect[0m
+[0;32mI (99051) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (99051) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (99051) H_API: esp_wifi_remote_connect[0m
+[0;32mI (101471) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (101471) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (101471) H_API: esp_wifi_remote_connect[0m
+[0;32mI (103881) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (103881) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (103881) H_API: esp_wifi_remote_connect[0m
+[0;32mI (106291) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (106291) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (106291) H_API: esp_wifi_remote_connect[0m
+[0;32mI (108711) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (108711) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (108711) H_API: esp_wifi_remote_connect[0m
+[0;32mI (111121) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (111121) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (111121) H_API: esp_wifi_remote_connect[0m
+[0;32mI (113541) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (113541) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (113541) H_API: esp_wifi_remote_connect[0m
+[0;32mI (115951) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (115951) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (115951) H_API: esp_wifi_remote_connect[0m
+[0;32mI (118361) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (118371) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (118371) H_API: esp_wifi_remote_connect[0m
+[0;32mI (120781) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (120781) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (120781) H_API: esp_wifi_remote_connect[0m
+[0;32mI (123191) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (123191) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (123191) H_API: esp_wifi_remote_connect[0m
+[0;32mI (125611) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (125611) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (125611) H_API: esp_wifi_remote_connect[0m
+[0;32mI (128021) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (128021) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (128021) H_API: esp_wifi_remote_connect[0m
+[0;32mI (130441) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (130441) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (130441) H_API: esp_wifi_remote_connect[0m
+[0;32mI (132851) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (132851) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (132851) H_API: esp_wifi_remote_connect[0m
+[0;32mI (135261) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (135261) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (135271) H_API: esp_wifi_remote_connect[0m
+[0;32mI (137681) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (137681) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (137681) H_API: esp_wifi_remote_connect[0m
+[0;32mI (140091) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (140091) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (140091) H_API: esp_wifi_remote_connect[0m
+[0;32mI (142511) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (142511) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (142511) H_API: esp_wifi_remote_connect[0m
+[0;32mI (144921) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (144921) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (144921) H_API: esp_wifi_remote_connect[0m
+[0;32mI (147341) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (147341) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (147341) H_API: esp_wifi_remote_connect[0m
+[0;32mI (149751) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (149751) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (149751) H_API: esp_wifi_remote_connect[0m
+[0;32mI (152161) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (152161) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (152161) H_API: esp_wifi_remote_connect[0m
+[0;32mI (154581) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (154581) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (154581) H_API: esp_wifi_remote_connect[0m
+[0;32mI (156991) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (156991) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (156991) H_API: esp_wifi_remote_connect[0m
+[0;32mI (159411) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (159411) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (159411) H_API: esp_wifi_remote_connect[0m
+[0;32mI (161821) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (161821) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (161821) H_API: esp_wifi_remote_connect[0m
+[0;32mI (164241) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (164241) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (164241) H_API: esp_wifi_remote_connect[0m
+[0;32mI (166651) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (166651) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (166651) H_API: esp_wifi_remote_connect[0m
+[0;32mI (169061) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (169061) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (169061) H_API: esp_wifi_remote_connect[0m
+[0;32mI (171481) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (171481) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (171481) H_API: esp_wifi_remote_connect[0m
+[0;32mI (173891) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (173891) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (173891) H_API: esp_wifi_remote_connect[0m
+[0;32mI (176311) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (17631

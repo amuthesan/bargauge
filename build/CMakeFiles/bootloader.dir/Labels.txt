@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/CMakeFiles/bootloader
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/CMakeFiles/bootloader.rule
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/CMakeFiles/bootloader-complete.rule
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
