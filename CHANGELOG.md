@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.3] - 2025-12-09
+### Fixed
+- **Stability**: Validated and restored smooth gauge animation.
+- **Logging**: Confirmed PSRAM logging is active and performant.
+- **rollback**: Reverted performance hacks that caused stuttering.
+
 ## [v0.3.2] - 2025-12-09
 ### Added
 - **Configurable Units**: Added "Gauge Unit" field to settings (e.g. PPM, %, Volts).
