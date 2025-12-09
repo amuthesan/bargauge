@@ -1983,3 +1983,58 @@
 268	288	1765268701722384000	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-done	946521fc526a6b27
 289	22589	1765268701723068880	CMakeFiles/flash	af366e161f66751a
 289	22589	1765268701723068880	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/CMakeFiles/flash	af366e161f66751a
+75	149	1765268972235451380	bootloader-prefix/src/bootloader-stamp/bootloader-build	6b247d1bde94ef3a
+75	149	1765268972235451380	bootloader/bootloader.elf	6b247d1bde94ef3a
+75	149	1765268972235451380	bootloader/bootloader.bin	6b247d1bde94ef3a
+75	149	1765268972235451380	bootloader/bootloader.map	6b247d1bde94ef3a
+75	149	1765268972235451380	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-build	6b247d1bde94ef3a
+75	149	1765268972235451380	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader/bootloader.elf	6b247d1bde94ef3a
+75	149	1765268972235451380	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader/bootloader.bin	6b247d1bde94ef3a
+75	149	1765268972235451380	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader/bootloader.map	6b247d1bde94ef3a
+149	166	1765268972310238360	bootloader-prefix/src/bootloader-stamp/bootloader-install	92d43a7d32d964dc
+149	166	1765268972310238360	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-install	92d43a7d32d964dc
+166	201	1765268972360223000	CMakeFiles/bootloader-complete	946521fc526a6b27
+166	201	1765268972360223000	bootloader-prefix/src/bootloader-stamp/bootloader-done	946521fc526a6b27
+166	201	1765268972360223000	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/CMakeFiles/bootloader-complete	946521fc526a6b27
+166	201	1765268972360223000	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-done	946521fc526a6b27
+74	492	1765268972235062004	esp-idf/main/CMakeFiles/__idf_main.dir/lvgl_sw_rotation.c.obj	c3566758d2a27fea
+492	531	1765268972653057986	esp-idf/main/libmain.a	a1678b529b261d7f
+531	4363	1765268976504554650	esp-idf/esp_system/ld/sections.ld	a64528f7420a6762
+531	4363	1765268976504554650	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/esp_system/ld/sections.ld	a64528f7420a6762
+4363	5394	1765268976523722417	lvgl_sw_rotation.elf	7172866f048e7de1
+5394	5523	1765268977682876865	.bin_timestamp	f909543e2d9a20be
+5394	5523	1765268977682876865	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/.bin_timestamp	f909543e2d9a20be
+5523	5554	1765268977683665116	esp-idf/esptool_py/CMakeFiles/app_check_size	18eb0f6400622b9f
+5523	5554	1765268977683665116	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/esptool_py/CMakeFiles/app_check_size	18eb0f6400622b9f
+46	77	1765268978237579964	esp-idf/esptool_py/CMakeFiles/app_check_size	18eb0f6400622b9f
+46	77	1765268978237579964	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/esptool_py/CMakeFiles/app_check_size	18eb0f6400622b9f
+45	93	1765268978237237880	bootloader-prefix/src/bootloader-stamp/bootloader-build	6b247d1bde94ef3a
+45	93	1765268978237237880	bootloader/bootloader.elf	6b247d1bde94ef3a
+45	93	1765268978237237880	bootloader/bootloader.bin	6b247d1bde94ef3a
+45	93	1765268978237237880	bootloader/bootloader.map	6b247d1bde94ef3a
+45	93	1765268978237237880	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-build	6b247d1bde94ef3a
+45	93	1765268978237237880	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader/bootloader.elf	6b247d1bde94ef3a
+45	93	1765268978237237880	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader/bootloader.bin	6b247d1bde94ef3a
+45	93	1765268978237237880	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader/bootloader.map	6b247d1bde94ef3a
+93	101	1765268978284384879	bootloader-prefix/src/bootloader-stamp/bootloader-install	92d43a7d32d964dc
+93	101	1765268978284384879	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-install	92d43a7d32d964dc
+102	189	1765268978379601000	CMakeFiles/bootloader-complete	946521fc526a6b27
+102	189	1765268978379601000	bootloader-prefix/src/bootloader-stamp/bootloader-done	946521fc526a6b27
+102	189	1765268978379601000	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/CMakeFiles/bootloader-complete	946521fc526a6b27
+102	189	1765268978379601000	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-done	946521fc526a6b27
+101	167	1765269012886664096	esp-idf/esptool_py/CMakeFiles/app_check_size	18eb0f6400622b9f
+101	167	1765269012886664096	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/esptool_py/CMakeFiles/app_check_size	18eb0f6400622b9f
+100	188	1765269012885417595	bootloader-prefix/src/bootloader-stamp/bootloader-build	6b247d1bde94ef3a
+100	188	1765269012885417595	bootloader/bootloader.elf	6b247d1bde94ef3a
+100	188	1765269012885417595	bootloader/bootloader.bin	6b247d1bde94ef3a
+100	188	1765269012885417595	bootloader/bootloader.map	6b247d1bde94ef3a
+100	188	1765269012885417595	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-build	6b247d1bde94ef3a
+100	188	1765269012885417595	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader/bootloader.elf	6b247d1bde94ef3a
+100	188	1765269012885417595	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader/bootloader.bin	6b247d1bde94ef3a
+100	188	1765269012885417595	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader/bootloader.map	6b247d1bde94ef3a
+188	196	1765269012974035379	bootloader-prefix/src/bootloader-stamp/bootloader-install	92d43a7d32d964dc
+188	196	1765269012974035379	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-install	92d43a7d32d964dc
+196	214	1765269012999628000	CMakeFiles/bootloader-complete	946521fc526a6b27
+196	214	1765269012999628000	bootloader-prefix/src/bootloader-stamp/bootloader-done	946521fc526a6b27
+196	214	1765269012999628000	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/CMakeFiles/bootloader-complete	946521fc526a6b27
+196	214	1765269012999628000	/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/bootloader-prefix/src/bootloader-stamp/bootloader-done	946521fc526a6b27

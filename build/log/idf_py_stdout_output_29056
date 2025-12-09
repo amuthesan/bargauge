@@ -381,4 +381,131 @@ entry 0x4ff2abda
 [0;32mI (173891) BarGauge: WiFi disconnected, reconnecting...[0m
 [0;32mI (173891) H_API: esp_wifi_remote_connect[0m
 [0;32mI (176311) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
-[0;32mI (17631
+[0;32mI (176311) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (176311) H_API: esp_wifi_remote_connect[0m
+[0;32mI (178721) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (178721) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (178721) H_API: esp_wifi_remote_connect[0m
+[0;32mI (181141) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (181141) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (181141) H_API: esp_wifi_remote_connect[0m
+[0;32mI (183551) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (183551) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (183551) H_API: esp_wifi_remote_connect[0m
+[0;32mI (185961) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (185961) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (185961) H_API: esp_wifi_remote_connect[0m
+[0;32mI (188381) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (188381) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (188381) H_API: esp_wifi_remote_connect[0m
+[0;32mI (190791) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (190791) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (190791) H_API: esp_wifi_remote_connect[0m
+[0;32mI (193211) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (193211) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (193211) H_API: esp_wifi_remote_connect[0m
+[0;32mI (195621) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (195621) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (195621) H_API: esp_wifi_remote_connect[0m
+[0;32mI (198041) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (198041) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (198041) H_API: esp_wifi_remote_connect[0m
+[0;32mI (200451) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (200451) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (200451) H_API: esp_wifi_remote_connect[0m
+[0;32mI (202861) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (202861) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (202861) H_API: esp_wifi_remote_connect[0m
+[0;32mI (205281) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (205281) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (205281) H_API: esp_wifi_remote_connect[0m
+[0;32mI (207691) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (207691) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (207691) H_API: esp_wifi_remote_connect[0m
+[0;32mI (210111) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (210111) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (210111) H_API: esp_wifi_remote_connect[0m
+[0;32mI (212521) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (212521) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (212521) H_API: esp_wifi_remote_connect[0m
+[0;32mI (214941) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (214941) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (214941) H_API: esp_wifi_remote_connect[0m
+[0;32mI (217351) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (217351) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (217351) H_API: esp_wifi_remote_connect[0m
+[0;32mI (219761) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (219761) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (219761) H_API: esp_wifi_remote_connect[0m
+[0;32mI (222181) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (222181) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (222181) H_API: esp_wifi_remote_connect[0m
+[0;32mI (224591) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (224591) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (224591) H_API: esp_wifi_remote_connect[0m
+[0;32mI (227011) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (227011) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (227011) H_API: esp_wifi_remote_connect[0m
+[0;32mI (229421) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (229421) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (229421) H_API: esp_wifi_remote_connect[0m
+[0;32mI (231841) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (231841) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (231841) H_API: esp_wifi_remote_connect[0m
+[0;32mI (234251) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (234251) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (234251) H_API: esp_wifi_remote_connect[0m
+[0;32mI (236661) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (236661) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (236661) H_API: esp_wifi_remote_connect[0m
+[0;32mI (239081) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (239081) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (239081) H_API: esp_wifi_remote_connect[0m
+[0;32mI (241491) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (241491) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (241491) H_API: esp_wifi_remote_connect[0m
+[0;32mI (243911) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (243911) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (243911) H_API: esp_wifi_remote_connect[0m
+[0;32mI (246331) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (246331) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (246331) H_API: esp_wifi_remote_connect[0m
+[0;32mI (248741) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (248741) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (248741) H_API: esp_wifi_remote_connect[0m
+[0;32mI (251151) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (251151) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (251151) H_API: esp_wifi_remote_connect[0m
+[0;32mI (253571) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (253571) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (253571) H_API: esp_wifi_remote_connect[0m
+[0;32mI (255981) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (255981) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (255981) H_API: esp_wifi_remote_connect[0m
+[0;32mI (258401) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (258401) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (258401) H_API: esp_wifi_remote_connect[0m
+[0;32mI (260811) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (260811) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (260811) H_API: esp_wifi_remote_connect[0m
+[0;32mI (263231) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (263231) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (263231) H_API: esp_wifi_remote_connect[0m
+[0;32mI (265641) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (265641) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (265641) H_API: esp_wifi_remote_connect[0m
+[0;32mI (268061) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (268061) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (268061) H_API: esp_wifi_remote_connect[0m
+[0;32mI (270471) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (270471) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (270471) H_API: esp_wifi_remote_connect[0m
+[0;32mI (272881) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (272881) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (272881) H_API: esp_wifi_remote_connect[0m
+[0;32mI (275301) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (275301) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (275301) H_API: esp_wifi_remote_connect[0m
+[0;32mI (277711) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (277711) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (277711) H_API: esp_wifi
