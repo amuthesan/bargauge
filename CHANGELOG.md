@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.4] - 2025-12-09
+### Added
+- **8-Gauge Grid**: Implemented 4x2 grid layout supporting 8 simultaneous gauges.
+- **Layout Optimization**: Resized gauges to 260x330px to fit 1280x800 screen without scrolling.
+- **Side Margins**: Added reserved space on left/right for future UI expansion.
+- **WiFi Status**: Dynamic Green/Red status icon added to top bar.
+- **Multi-Gauge Config**: Added dropdown in Settings to switch between Gauge 1-8 configuration contexts.
+
+### Fixed
+- **Settings Crash**: Fixed invalid pointer dereference when opening Settings.
+- **Back Button Crash**: Fixed unsafe object access when returning from Settings to Main Screen.
+
 ## [v0.3.3] - 2025-12-09
 ### Fixed
 - **Stability**: Validated and restored smooth gauge animation.

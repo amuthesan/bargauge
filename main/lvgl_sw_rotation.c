@@ -46,6 +46,8 @@ esp_err_t esp_lcd_touch_new_i2c_gsl3680(esp_lcd_panel_io_handle_t io, const esp_
 #include "lvgl_port_v9.h"
 #include "lv_demos.h"
 #include "driver/ppa.h"
+#include <math.h>
+#include <stdlib.h>
 
 static const char *TAG = "BarGauge";
 
@@ -55,24 +57,7 @@ static const char *TAG = "BarGauge";
 
 // WiFi status
 static bool wifi_connected = false;
-static char time_str[32] = "--:--:--";
-static lv_obj_t *time_label = NULL; // Time display label
-
-// Timer callback to update time display
-static void update_time_timer_cb(lv_timer_t *timer) {
-    time_t now;
-    struct tm timeinfo;
-    time(&now);
-    localtime_r(&now, &timeinfo);
-    
-    // Only update if year is valid (> 2020) to avoid showing epoch
-    if (timeinfo.tm_year > (2020 - 1900)) {
-        strftime(time_str, sizeof(time_str), "%H:%M:%S", &timeinfo);
-        if (time_label) {
-            lv_label_set_text(time_label, time_str);
-        }
-    }
-}
+// Duplicate time_label and callback removed
 
 
 #define BSP_MIPI_DSI_PHY_PWR_LDO_CHAN       (3)  // LDO_VO3 is connected to VDD_MIPI_DPHY
@@ -440,28 +425,40 @@ typedef struct {
     int threshold;    // Future use
 } GasGaugeConfig;
 
-static GasGaugeConfig methane_config = {
-    .name = "METHANE",
-    .unit = "PPM",
-    .min_val = 0,
-    .max_val = 100,
-    .blue_limit = 30, // 0-30 Cyan
-    .yellow_limit = 70, // 30-70 Yellow
-    .red_limit = 100,  // unused
-    .threshold = 80
-};
+static GasGaugeConfig gauge_configs[8];
+static int current_edit_index = 0; // Index of gauge currently being edited in settings
+
+// Initialize configs (call in app_main or static init)
+static void init_gauge_configs(void) {
+    for(int i=0; i<8; i++) {
+        snprintf(gauge_configs[i].name, 32, "GAUGE %d", i+1);
+        snprintf(gauge_configs[i].unit, 16, "PPM");
+        gauge_configs[i].min_val = 0;
+        gauge_configs[i].max_val = 100;
+        gauge_configs[i].blue_limit = 30;
+        gauge_configs[i].yellow_limit = 70;
+        gauge_configs[i].red_limit = 100;
+        gauge_configs[i].threshold = 80;
+    }
+}
 
 // Forward declarations
-static lv_obj_t * create_gas_widget(lv_obj_t *parent);
+static lv_obj_t * create_gas_widget(lv_obj_t *parent, int index);
 static void create_trending_screen(void);
 static void create_settings_screen(void);
 static void create_main_screen(void);
 
 // Global/Static references for updates
-static lv_obj_t * const_arc = NULL;
-static lv_obj_t * const_val_label = NULL;
-static lv_obj_t * const_title_lbl = NULL; // To update name
-static lv_obj_t * const_unit_lbl = NULL; // To update unit
+static lv_obj_t * time_label = NULL; // For time display
+static lv_obj_t * wifi_status_icon = NULL; // For WiFi status
+
+// Gauge Arrays
+static lv_obj_t * gauge_widgets[8] = {NULL};
+static lv_obj_t * gauge_arcs[8] = {NULL};
+static lv_obj_t * gauge_labels[8] = {NULL}; // Digital Value
+static lv_obj_t * gauge_title_labels[8] = {NULL};
+static lv_obj_t * gauge_unit_labels[8] = {NULL};
+
 static lv_obj_t * const_chart = NULL;
 static lv_chart_series_t * const_ser1 = NULL;
 
@@ -470,7 +467,17 @@ static lv_obj_t * trending_screen = NULL;
 static lv_obj_t * settings_screen = NULL;
 static lv_obj_t * kb = NULL; // Global keyboard
 
+// Settings Text Areas
+static lv_obj_t * ta_name = NULL;
+static lv_obj_t * ta_unit = NULL;
+static lv_obj_t * ta_min = NULL;
+static lv_obj_t * ta_max = NULL;
+static lv_obj_t * ta_blue = NULL;
+static lv_obj_t * ta_yellow = NULL;
+
 static void trending_btn_event_cb(lv_event_t * e) {
+    // Get the index of the gauge that triggered this event
+    current_edit_index = (int)lv_event_get_user_data(e);
     if (trending_screen == NULL) {
         create_trending_screen();
     }
@@ -478,6 +485,8 @@ static void trending_btn_event_cb(lv_event_t * e) {
 }
 
 static void settings_btn_event_cb(lv_event_t * e) {
+    // Get the index of the gauge that triggered this event
+    current_edit_index = (int)lv_event_get_user_data(e);
     if (settings_screen == NULL) {
         create_settings_screen();
     }
@@ -493,12 +502,11 @@ static void back_from_trending_cb(lv_event_t * e) {
 static void back_from_settings_cb(lv_event_t * e) {
     if (main_screen) {
         // Update Title if changed
-        if (const_title_lbl) {
-            lv_label_set_text(const_title_lbl, methane_config.name);
+        if (gauge_title_labels[current_edit_index]) {
+            lv_label_set_text(gauge_title_labels[current_edit_index], gauge_configs[current_edit_index].name);
         }
-        // Update Unit if changed
-        if (const_unit_lbl) {
-            lv_label_set_text(const_unit_lbl, methane_config.unit);
+        if (gauge_unit_labels[current_edit_index]) {
+            lv_label_set_text(gauge_unit_labels[current_edit_index], gauge_configs[current_edit_index].unit);
         }
         lv_scr_load_anim(main_screen, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 500, 0, false);
     }
@@ -547,7 +555,7 @@ static void name_ta_cb(lv_event_t * e) {
     if (code == LV_EVENT_VALUE_CHANGED) {
         lv_obj_t * ta = lv_event_get_target(e);
         const char * txt = lv_textarea_get_text(ta);
-        snprintf(methane_config.name, sizeof(methane_config.name), "%s", txt);
+        snprintf(gauge_configs[current_edit_index].name, sizeof(gauge_configs[current_edit_index].name), "%s", txt);
     }
     ta_event_cb(e); // Chain to standard handler
 }
@@ -557,7 +565,7 @@ static void unit_ta_cb(lv_event_t * e) {
     if (code == LV_EVENT_VALUE_CHANGED) {
         lv_obj_t * ta = lv_event_get_target(e);
         const char * txt = lv_textarea_get_text(ta);
-        snprintf(methane_config.unit, sizeof(methane_config.unit), "%s", txt);
+        snprintf(gauge_configs[current_edit_index].unit, sizeof(gauge_configs[current_edit_index].unit), "%s", txt);
     }
     ta_event_cb(e); // Chain to standard handler
 }
@@ -566,16 +574,19 @@ static void int_val_ta_cb(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_VALUE_CHANGED) {
         lv_obj_t * ta = lv_event_get_target(e);
-        /* Identify which field to update by user_data pointer to int* */
-        int * target_ptr = (int*)lv_event_get_user_data(e);
-        
+        int field_id = (int)lv_event_get_user_data(e);
         const char * txt = lv_textarea_get_text(ta);
-        if (target_ptr) {
-            *target_ptr = atoi(txt);
+        int val = atoi(txt);
+        
+        switch(field_id) {
+            case 10: gauge_configs[current_edit_index].min_val = val; break;
+            case 11: gauge_configs[current_edit_index].max_val = val; break;
+            case 12: gauge_configs[current_edit_index].blue_limit = val; break;
+            case 13: gauge_configs[current_edit_index].yellow_limit = val; break;
         }
     }
     
-    // Manual Keyboard Logic since we hijacked user_data
+    // Manual Keyboard Logic
     if(code == LV_EVENT_CLICKED || code == LV_EVENT_FOCUSED) {
         lv_obj_t * ta = lv_event_get_target(e);
         if(kb) {
@@ -592,7 +603,7 @@ static void int_val_ta_cb(lv_event_t * e) {
 }
 
 // Helper to create valid TA row
-static void create_config_row(lv_obj_t * parent, const char * title, char * text_buffer, int * int_ptr, int type) {
+static lv_obj_t * create_config_row(lv_obj_t * parent, const char * title, const char * text_buffer, int id, int type) {
     // Type 0: Int, 1: Name, 2: Unit
     lv_obj_t * cont = lv_obj_create(parent);
     lv_obj_set_size(cont, 780, 70); // Wider, taller
@@ -611,22 +622,41 @@ static void create_config_row(lv_obj_t * parent, const char * title, char * text
     lv_obj_set_size(ta, 300, 50);
     lv_obj_set_style_text_font(ta, &lv_font_montserrat_24, 0); // Large font
     lv_textarea_set_one_line(ta, true);
+    lv_textarea_set_text(ta, text_buffer); // Direct value set
     
     if (type == 1) { // Name
-        lv_textarea_set_text(ta, text_buffer);
         lv_textarea_set_max_length(ta, 31);
         lv_obj_add_event_cb(ta, name_ta_cb, LV_EVENT_ALL, (void*)1); 
     } else if (type == 2) { // Unit
-        lv_textarea_set_text(ta, text_buffer);
         lv_textarea_set_max_length(ta, 15);
         lv_obj_add_event_cb(ta, unit_ta_cb, LV_EVENT_ALL, (void*)1); 
     } else { // Int
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%d", *int_ptr);
-        lv_textarea_set_text(ta, buf);
         lv_textarea_set_max_length(ta, 4); // Max 4 digits
-        // Pass int pointer as User Data
-        lv_obj_add_event_cb(ta, int_val_ta_cb, LV_EVENT_ALL, (void*)int_ptr); 
+        // Pass int ID as User Data
+        lv_obj_add_event_cb(ta, int_val_ta_cb, LV_EVENT_ALL, (void*)id); 
+    }
+    return ta;
+}
+
+static void dd_event_cb(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target(e);
+    if(code == LV_EVENT_VALUE_CHANGED) {
+        current_edit_index = lv_dropdown_get_selected(obj);
+        
+        // Refresh all TAs with new config values
+        lv_textarea_set_text(ta_name, gauge_configs[current_edit_index].name);
+        lv_textarea_set_text(ta_unit, gauge_configs[current_edit_index].unit);
+        
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].min_val);
+        lv_textarea_set_text(ta_min, buf);
+        // Important: Update User Data pointers for INT fields? 
+        // No, user data was pointer to struct field. Struct field address changes!
+        // We must RE-ASSIGN event callbacks or use a different approach.
+        // Easier: Use global `gauge_configs[current_edit_index]` index in the callback itself instead of pointer.
+        // But the callback logic currently uses `int*`.
+        // FIX: Reroute callback logic to use current_edit_index.
     }
 }
 
@@ -643,15 +673,38 @@ static void create_settings_screen(void) {
     lv_label_set_text(header, "Configuration");
     lv_obj_set_style_text_font(header, &lv_font_montserrat_32, 0); // Larger Header
     lv_obj_set_style_text_color(header, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_pad_bottom(header, 30, 0);
+    // lv_obj_set_style_pad_bottom(header, 30, 0);
 
-    // Rows
-    create_config_row(settings_screen, "Gauge Name", methane_config.name, NULL, 1);
-    create_config_row(settings_screen, "Gauge Unit", methane_config.unit, NULL, 2);
-    create_config_row(settings_screen, "Min Value", NULL, &methane_config.min_val, 0);
-    create_config_row(settings_screen, "Max Value", NULL, &methane_config.max_val, 0);
-    create_config_row(settings_screen, "Blue Limit", NULL, &methane_config.blue_limit, 0);
-    create_config_row(settings_screen, "Yellow Limit", NULL, &methane_config.yellow_limit, 0);
+    // Dropdown to Select Gauge
+    lv_obj_t * dd = lv_dropdown_create(settings_screen);
+    lv_dropdown_set_options(dd, "Gauge 1\nGauge 2\nGauge 3\nGauge 4\nGauge 5\nGauge 6\nGauge 7\nGauge 8");
+    lv_obj_set_width(dd, 200);
+    lv_dropdown_set_selected(dd, current_edit_index);
+    lv_obj_add_event_cb(dd, dd_event_cb, LV_EVENT_ALL, NULL);
+    lv_obj_set_style_margin_bottom(dd, 20, 0);
+
+    // Rows - Using simplified callback logic
+    // Now passing PRE-FORMATTED strings and INT IDs
+    
+    ta_name = create_config_row(settings_screen, "Gauge Name", gauge_configs[current_edit_index].name, 0, 1);
+    ta_unit = create_config_row(settings_screen, "Gauge Unit", gauge_configs[current_edit_index].unit, 0, 2);
+    
+    char buf[16];
+    // Min
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].min_val);
+    ta_min = create_config_row(settings_screen, "Min Value", buf, 10, 0);
+    
+    // Max
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].max_val);
+    ta_max = create_config_row(settings_screen, "Max Value", buf, 11, 0);
+    
+    // Blue
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].blue_limit);
+    ta_blue = create_config_row(settings_screen, "Blue Limit", buf, 12, 0);
+    
+    // Yellow
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].yellow_limit);
+    ta_yellow = create_config_row(settings_screen, "Yellow Limit", buf, 13, 0);
 
     // Back Button (At bottom of scroll)
     lv_obj_t * btn = lv_btn_create(settings_screen);
@@ -677,79 +730,89 @@ static void create_settings_screen(void) {
     lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN); // Hide initially
 }
 
-static lv_obj_t* create_gas_widget(lv_obj_t *parent) {
-    // 1. Container (Dark Background)
+// Helper to get widget objects by index (store pointers if needed, or iterate children)
+// For simplicity, we'll traverse children of main_screen or assume order.
+// Better approach: Store widget pointers in an array.
+// Global arrays defined at top
+
+static lv_obj_t* create_gas_widget(lv_obj_t *parent, int index) {
+    // 1. Container (Black Card, Rounded)
+    // Resized for Compact Fit (Target 4 cols in ~1100px width) -> ~260px wide
     lv_obj_t * container = lv_obj_create(parent);
-    lv_obj_set_size(container, 400, 400);
-    lv_obj_center(container);
-    lv_obj_set_style_bg_opa(container, 0, 0); // Transparent
+    lv_obj_set_size(container, 260, 330); 
+    lv_obj_set_style_bg_color(container, lv_color_hex(0x000000), 0); // Black
+    lv_obj_set_style_bg_opa(container, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(container, 20, 0); 
     lv_obj_set_style_border_width(container, 0, 0);
-    lv_obj_set_style_pad_all(container, 0, 0);
+    lv_obj_set_style_pad_all(container, 5, 0); // Minimal padding
+    // Center in cell handled by grid/flex
 
     // 2. Arc Gauge (270 degree)
     lv_obj_t * arc = lv_arc_create(container);
-    lv_obj_set_size(arc, 300, 300);
-    lv_arc_set_rotation(arc, 135); // Start at bottom-left
+    lv_obj_set_size(arc, 200, 200); // Smaller arc
+    lv_arc_set_rotation(arc, 135);
     lv_arc_set_bg_angles(arc, 0, 270);
-    lv_arc_set_range(arc, methane_config.min_val, methane_config.max_val);
+    lv_arc_set_range(arc, gauge_configs[index].min_val, gauge_configs[index].max_val);
     lv_arc_set_value(arc, 0);
-    lv_obj_center(arc);
-    lv_obj_remove_style(arc, NULL, LV_PART_KNOB); // Remove knob
+    // Align Arc slightly higher to reduce top gap
+    lv_obj_align(arc, LV_ALIGN_TOP_MID, 0, 30); 
+    lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
     
     // Style: Dark Grey Background Arc
     lv_obj_set_style_arc_color(arc, lv_color_hex(0x303030), LV_PART_MAIN);
-    lv_obj_set_style_arc_width(arc, 20, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(arc, 15, LV_PART_MAIN); // Thinner
     
     // Style: Indicator Arc
     lv_obj_set_style_arc_color(arc, lv_color_hex(0x00FFFF), LV_PART_INDICATOR); // Cyan default
-    lv_obj_set_style_arc_width(arc, 20, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(arc, 15, LV_PART_INDICATOR);
     
-    const_arc = arc;
+    gauge_arcs[index] = arc;
 
-    // 3. Digital Value "00"
+    // 3. Digital Value
     lv_obj_t * val_lbl = lv_label_create(container);
     lv_label_set_text(val_lbl, "0");
-    lv_obj_set_style_text_font(val_lbl, &lv_font_montserrat_32, 0);
+    lv_obj_set_style_text_font(val_lbl, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(val_lbl, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_center(val_lbl);
-    lv_obj_align(val_lbl, LV_ALIGN_CENTER, 0, -10);
+    // Align inside arc center
+    lv_obj_align_to(val_lbl, arc, LV_ALIGN_CENTER, 0, 0);
     
-    const_val_label = val_lbl;
+    gauge_labels[index] = val_lbl;
 
-    // 4. Label "METHANE"
+    // 4. Label NAME (Above Arc, closer to top)
     lv_obj_t * title_lbl = lv_label_create(container);
-    lv_label_set_text(title_lbl, methane_config.name); // Dynamic Name
-    lv_obj_set_style_text_font(title_lbl, &lv_font_montserrat_16, 0);
+    lv_label_set_text(title_lbl, gauge_configs[index].name); 
+    lv_obj_set_style_text_font(title_lbl, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(title_lbl, lv_color_hex(0xAAAAAA), 0);
-    lv_obj_align(title_lbl, LV_ALIGN_CENTER, 0, -50);
+    lv_obj_align(title_lbl, LV_ALIGN_TOP_MID, 0, 10); // Very top
     
-    const_title_lbl = title_lbl;
+    gauge_title_labels[index] = title_lbl;
 
-    // 5. Label "PPM"
+    // 5. Label "PPM" (Below Value, inside Arc)
     lv_obj_t * unit_lbl = lv_label_create(container);
-    lv_label_set_text(unit_lbl, methane_config.unit); // Dynamic Unit
-    lv_obj_set_style_text_font(unit_lbl, &lv_font_montserrat_16, 0);
+    lv_label_set_text(unit_lbl, gauge_configs[index].unit); 
+    lv_obj_set_style_text_font(unit_lbl, &lv_font_montserrat_12, 0); 
     lv_obj_set_style_text_color(unit_lbl, lv_color_hex(0xAAAAAA), 0);
-    lv_obj_align(unit_lbl, LV_ALIGN_CENTER, 0, 30);
+    lv_obj_align_to(unit_lbl, val_lbl, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
     
-    const_unit_lbl = unit_lbl;
-
-    // 6. Trending Button
+    gauge_unit_labels[index] = unit_lbl;
+    
+    // 6. Trending Button (Bottom)
     lv_obj_t * btn = lv_btn_create(container);
-    lv_obj_set_size(btn, 120, 40);
-    lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -10);
+    lv_obj_set_size(btn, 100, 30);
+    lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -15);
     lv_obj_set_style_bg_color(btn, lv_color_hex(0x202020), 0);
     lv_obj_set_style_border_color(btn, lv_color_hex(0x505050), 0);
     lv_obj_set_style_border_width(btn, 1, 0);
     lv_obj_set_style_radius(btn, 20, 0);
-    lv_obj_add_event_cb(btn, trending_btn_event_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn, trending_btn_event_cb, LV_EVENT_CLICKED, (void*)index);
 
     lv_obj_t * btn_lbl = lv_label_create(btn);
     lv_label_set_text(btn_lbl, "TRENDING");
     lv_obj_set_style_text_color(btn_lbl, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_text_font(btn_lbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(btn_lbl, &lv_font_montserrat_12, 0); // Smaller
     lv_obj_center(btn_lbl);
 
+    gauge_widgets[index] = container; // Store reference
     return container;
 }
 
@@ -758,7 +821,7 @@ static void create_trending_screen(void) {
     lv_obj_set_style_bg_color(trending_screen, lv_color_hex(0x000000), 0); // Black bg
 
     lv_obj_t * label = lv_label_create(trending_screen);
-    lv_label_set_text(label, "Trending Data");
+    lv_label_set_text_fmt(label, "Trending Data for %s", gauge_configs[current_edit_index].name);
     lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
     lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 20);
@@ -782,7 +845,7 @@ static void create_trending_screen(void) {
     lv_obj_center(chart);
     lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
     lv_chart_set_point_count(chart, 50); // Show last 50 points
-    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 0, 100); // Should also likely depend on config?
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, gauge_configs[current_edit_index].min_val, gauge_configs[current_edit_index].max_val);
     // For now hardcoded 0-100 in chart creation but we can update it in timer too.
     
     // Style: Dark Chart Background
@@ -797,73 +860,119 @@ static void create_trending_screen(void) {
     const_chart = chart;
 }
 
-// Timer to simulate data updates and apply config
+// Update all 8 gauges
 static void gas_update_timer_cb(lv_timer_t * timer) {
-    // Simulate value 0-100
-    static float val = 0;
-    static bool up = true;
-    if(up) val += 1.0f; else val -= 1.0f;
-    if(val >= 100) up = false;
-    if(val <= 0) up = true;
-    
-    // Update Arc
-    if(const_arc) {
-        // Apply Config Range dynamically
-        lv_arc_set_range(const_arc, methane_config.min_val, methane_config.max_val);
-        lv_arc_set_value(const_arc, (int32_t)val);
+    for(int i=0; i<8; i++) {
+        if (!gauge_arcs[i] || !gauge_labels[i]) continue;
+
+        // Simulate Gas Value (Sine wave + noise + offset based on index)
+        static float angle[8] = {0}; // Separate angle for each gauge
+        angle[i] += 0.05f + (float)i * 0.005f; // Slightly different speed
+        int noise = (rand() % 10) - 5;
+        // Diff offset for each gauge
+        int val = (int)(50 + 40 * sin(angle[i])) + noise;
+
+        // Clamp to Config Limits
+        if (val < gauge_configs[i].min_val) val = gauge_configs[i].min_val;
+        if (val > gauge_configs[i].max_val) val = gauge_configs[i].max_val;
         
-        // Dynamic Color Logic based on Config
-        // Blue Zone: [0, blue_limit]
-        // Yellow Zone: [blue_limit, yellow_limit]
-        // Red Zone: [yellow_limit, max]
+        // Log the data (PSRAM only) - DISABLED
+        // log_add_point(val);
+
+        // Update Arc (Smooth animation)
+        lv_arc_set_value(gauge_arcs[i], val);
         
-        if (val < methane_config.blue_limit) {
-            // Blue/Cyan
-           lv_obj_set_style_arc_color(const_arc, lv_color_hex(0x00FFFF), LV_PART_INDICATOR); 
-        } else if (val < methane_config.yellow_limit) {
-            // Yellow
-           lv_obj_set_style_arc_color(const_arc, lv_color_hex(0xFFFF00), LV_PART_INDICATOR);
+        // Update Digital Label
+        if (gauge_labels[i]) {
+            lv_label_set_text_fmt(gauge_labels[i], "%d", val);
+        }
+        
+        // Update Color Zones Logic
+        if (val < gauge_configs[i].blue_limit) {
+            lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0x00FFFF), LV_PART_INDICATOR); // Cyan
+        } else if (val < gauge_configs[i].yellow_limit) {
+            lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFFFF00), LV_PART_INDICATOR); // Yellow
         } else {
-            // Red (Danger)
-           lv_obj_set_style_arc_color(const_arc, lv_color_hex(0xFF0000), LV_PART_INDICATOR);
-           lv_obj_set_style_img_recolor(const_arc, lv_color_hex(0xFF0000), LV_PART_KNOB); 
+            lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFF0000), LV_PART_INDICATOR); // Red
         }
     }
+    
+    // Refresh Trending Chart if visible (Just for 1st gauge? Or needs selector? Leave flat for now)
+    if (trending_screen && lv_obj_is_visible(trending_screen)) {
+         // update_trending_chart(); // Placeholder for actual chart update logic
+    }
+}
 
-    // Update Label
-    if(const_val_label) {
-        lv_label_set_text_fmt(const_val_label, "%d", (int)val);
+static void update_time_timer_cb(lv_timer_t * timer) {
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+
+    if (time_label) {
+        lv_label_set_text_fmt(time_label, "%02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+    }
+    
+    if (wifi_status_icon) {
+        if (wifi_connected) {
+            lv_obj_set_style_text_color(wifi_status_icon, lv_color_hex(0x00AA00), 0); // Green
+        } else {
+            lv_obj_set_style_text_color(wifi_status_icon, lv_color_hex(0xAA0000), 0); // Red
+        }
     }
 }
 
 static void create_main_screen(void) {
     if(lvgl_port_lock(-1)) {
         main_screen = lv_obj_create(NULL);
-        // Set screen background to Black (VolosR style)
-        lv_obj_set_style_bg_color(main_screen, lv_color_hex(0x000000), 0);
+        // Set screen background to White (Bright Theme)
+        lv_obj_set_style_bg_color(main_screen, lv_color_hex(0xFFFFFF), 0);
         
-        // Time Label (Top Right or Center)
+        // Time Label (Top Right)
         time_label = lv_label_create(main_screen);
         lv_label_set_text(time_label, "--:--:--");
-        lv_obj_set_style_text_font(time_label, &lv_font_montserrat_24, 0);
-        lv_obj_set_style_text_color(time_label, lv_color_hex(0x00BFFF), 0);
-        lv_obj_align(time_label, LV_ALIGN_TOP_RIGHT, -20, 20);
-        
+        lv_obj_set_style_text_font(time_label, &lv_font_montserrat_20, 0);
+        lv_obj_set_style_text_color(time_label, lv_color_hex(0x000000), 0);
+        lv_obj_align(time_label, LV_ALIGN_TOP_RIGHT, -50, 10); // Shift left for wifi icon
+
+        // WiFi Icon (Right of Time)
+        wifi_status_icon = lv_label_create(main_screen);
+        lv_label_set_text(wifi_status_icon, LV_SYMBOL_WIFI); 
+        lv_obj_set_style_text_color(wifi_status_icon, lv_color_hex(0x000000), 0);
+        lv_obj_align_to(wifi_status_icon, time_label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
+        // Note: Update logic for color needed based on status
+
         // Settings Button (Bottom Right)
         lv_obj_t * settings_btn = lv_btn_create(main_screen);
-        lv_obj_set_size(settings_btn, 50, 50);
-        lv_obj_align(settings_btn, LV_ALIGN_BOTTOM_RIGHT, -20, -20);
-        lv_obj_set_style_bg_color(settings_btn, lv_color_hex(0x202020), 0);
-        lv_obj_set_style_shadow_width(settings_btn, 0, 0);
-        lv_obj_add_event_cb(settings_btn, settings_btn_event_cb, LV_EVENT_CLICKED, NULL);
+        lv_obj_set_size(settings_btn, 40, 40); // Smaller
+        lv_obj_align(settings_btn, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
+        lv_obj_add_event_cb(settings_btn, settings_btn_event_cb, LV_EVENT_CLICKED, (void*)0); // Default to editing gauge 0
         
-        lv_obj_t * sett_lbl = lv_label_create(settings_btn);
-        lv_label_set_text(sett_lbl, LV_SYMBOL_SETTINGS);
-        lv_obj_set_style_text_color(sett_lbl, lv_color_hex(0xFFFFFF), 0);
-        lv_obj_center(sett_lbl);
+        lv_obj_t * settings_lbl = lv_label_create(settings_btn);
+        lv_label_set_text(settings_lbl, LV_SYMBOL_SETTINGS);
+        lv_obj_set_style_text_color(settings_lbl, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_center(settings_lbl);
 
-        // Create Gas Widget
-        create_gas_widget(main_screen);
+        // --- Grid Layout ---
+        // Create a Grid Container for gauges
+        // Width: 1280. Margins ~80px/side for future buttons.
+        // Usable width ~1120px. 1120/4 = 280px per col.
+        lv_obj_t * grid_cont = lv_obj_create(main_screen);
+        lv_obj_set_size(grid_cont, 1140, 720); // Compact container
+        lv_obj_align(grid_cont, LV_ALIGN_CENTER, 0, 20); // Centered, slightly down
+        lv_obj_set_style_bg_opa(grid_cont, 0, 0);
+        lv_obj_set_style_border_width(grid_cont, 0, 0);
+        
+        // Flex Layout (Wrap)
+        lv_obj_set_flex_flow(grid_cont, LV_FLEX_FLOW_ROW_WRAP);
+        lv_obj_set_flex_align(grid_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_BETWEEN); // Center items
+        lv_obj_set_style_pad_column(grid_cont, 10, 0);
+        lv_obj_set_style_pad_row(grid_cont, 10, 0);
+
+        // Create 8 Widgets
+        for(int i=0; i<8; i++) {
+             create_gas_widget(grid_cont, i);
+        }
         
         // Start Update Timer
         lv_timer_create(gas_update_timer_cb, 100, NULL);
@@ -889,7 +998,11 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_sta();
 
-    // Initialize WiFi
+    // Init Logging (PSRAM)
+    // init_logging(); // Assuming this is defined elsewhere if needed
+    
+    // Init Configs
+    init_gauge_configs();
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
