@@ -537,6 +537,9 @@ static lv_obj_t * ta_max = NULL;
 static lv_obj_t * ta_blue = NULL;
 static lv_obj_t * ta_yellow = NULL;
 
+static lv_obj_t * sys_wifi_label = NULL;
+static lv_obj_t * sys_ip_label = NULL;
+
 static void trending_btn_event_cb(lv_event_t * e) {
     // Get the index of the gauge that triggered this event
     current_edit_index = (int)lv_event_get_user_data(e);
@@ -792,25 +795,25 @@ static void create_settings_screen(void) {
     
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
-    lv_label_set_text(lbl_ver, "App Version: v0.3.7");
+    lv_label_set_text(lbl_ver, "App Version: v0.3.8");
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
     
     // WiFi Status
-    lv_obj_t * lbl_wifi = lv_label_create(tab2);
-    lv_label_set_text_fmt(lbl_wifi, "WiFi Status: %s", wifi_connected ? "Connected" : "Disconnected#AA0000"); 
+    sys_wifi_label = lv_label_create(tab2);
+    lv_label_set_text_fmt(sys_wifi_label, "WiFi Status: %s", wifi_connected ? "Connected" : "Disconnected"); 
     // Manual color coding string? No, simple text for now.
-    if(wifi_connected) lv_obj_set_style_text_color(lbl_wifi, lv_color_hex(0x00FF00), 0);
-    else lv_obj_set_style_text_color(lbl_wifi, lv_color_hex(0xFF0000), 0);
-    lv_obj_set_style_text_font(lbl_wifi, &lv_font_montserrat_24, 0);
-    lv_obj_set_style_margin_bottom(lbl_wifi, 20, 0);
+    if(wifi_connected) lv_obj_set_style_text_color(sys_wifi_label, lv_color_hex(0x00FF00), 0);
+    else lv_obj_set_style_text_color(sys_wifi_label, lv_color_hex(0xFF0000), 0);
+    lv_obj_set_style_text_font(sys_wifi_label, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_margin_bottom(sys_wifi_label, 20, 0);
     
     // IP Address
-    lv_obj_t * lbl_ip = lv_label_create(tab2);
-    lv_label_set_text_fmt(lbl_ip, "IP Address: %s", system_ip_str);
-    lv_obj_set_style_text_font(lbl_ip, &lv_font_montserrat_24, 0);
-    lv_obj_set_style_text_color(lbl_ip, lv_color_hex(0xAAAAAA), 0);
+    sys_ip_label = lv_label_create(tab2);
+    lv_label_set_text_fmt(sys_ip_label, "IP Address: %s", system_ip_str);
+    lv_obj_set_style_text_font(sys_ip_label, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(sys_ip_label, lv_color_hex(0xAAAAAA), 0);
 
 
     // 2. Back Button (Bottom Fixed)
@@ -1046,6 +1049,21 @@ static void update_time_timer_cb(lv_timer_t * timer) {
             lv_obj_set_style_text_color(wifi_status_icon, lv_color_hex(0xAA0000), 0); // Red
         }
     }
+    
+    // Update System Info in Settings if created
+    if (sys_wifi_label && lv_obj_is_valid(sys_wifi_label)) {
+        if (wifi_connected) {
+            lv_label_set_text(sys_wifi_label, "WiFi Status: Connected");
+            lv_obj_set_style_text_color(sys_wifi_label, lv_color_hex(0x00FF00), 0);
+        } else {
+            lv_label_set_text(sys_wifi_label, "WiFi Status: Disconnected");
+            lv_obj_set_style_text_color(sys_wifi_label, lv_color_hex(0xFF0000), 0);
+        }
+    }
+    
+    if (sys_ip_label && lv_obj_is_valid(sys_ip_label)) {
+        lv_label_set_text_fmt(sys_ip_label, "IP Address: %s", system_ip_str);
+    }
 }
 
 static void create_main_screen(void) {
@@ -1148,6 +1166,8 @@ static void create_main_screen(void) {
         lvgl_port_unlock();
     }
 }
+
+static void create_main_screen(void); // Forward declaration
 
 void app_main(void)
 {
@@ -1322,7 +1342,7 @@ void app_main(void)
     
     // vTaskDelay(pdMS_TO_TICKS(2000));
     ESP_LOGI(TAG, "Starting app_main...");
-
+    
     ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_gsl3680(tp_io_handle, &tp_cfg, &tp_handle));
 
     lvgl_port_interface_t interface = (dpi_config.flags.use_dma2d) ? LVGL_PORT_INTERFACE_MIPI_DSI_DMA : LVGL_PORT_INTERFACE_MIPI_DSI_NO_DMA;

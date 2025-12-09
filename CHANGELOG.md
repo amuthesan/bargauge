@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.3.8
+- **Bug Fix:** System Info tab now correctly auto-updates WiFi Status and IP Address in real-time.
+- **Rollback:** Removed Boot Splash Screen feature to resolve WDT stability issues.
+- **Maintenance:** Cleaned up project configuration and dependencies.
+
 ## v0.3.7
 - **Settings Tabs:** Organized configuration into "Gauge Config" and "System Info" tabs.
 - **System Info:** added tab displaying Firmware Version, WiFi Status, and IP Address.
