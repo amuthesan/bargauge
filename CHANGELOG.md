@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.1] - 2025-12-09
+
+### Added
+- **RTC Integration**: Added RX8025T driver for persistent timekeeping.
+- **Time Display**: Digital clock added to the top center of the main screen.
+- **Timezone**: configured for Kuala Lumpur (GMT+8).
+- **Fonts**: Enabled Montserrat font family (sizes 12-32) in SDK config.
+- **NTP Sync**: Implemented automatic RTC update from NTP time.
+
+### Fixed
+- **Build Error**: Fixed missing font declaration `lv_font_montserrat_24`.
+
 ## [v0.1.0] - 2025-12-09
 
 ### Added

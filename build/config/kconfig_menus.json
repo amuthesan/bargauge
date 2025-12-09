@@ -40700,7 +40700,10 @@
                                 "help": "Thread priority controls the relative importance of the drawing threads.\nValues correspond to lv_thread_prio_t enum in lv_os.h:\n0: LV_THREAD_PRIO_LOWEST\n1: LV_THREAD_PRIO_LOW\n2: LV_THREAD_PRIO_MID (default)\n3: LV_THREAD_PRIO_HIGH\n4: LV_THREAD_PRIO_HIGHEST\n\nHigher priority can improve rendering performance but might cause\nstarvation of lower priority tasks.",
                                 "id": "LV_DRAW_THREAD_PRIO",
                                 "name": "LV_DRAW_THREAD_PRIO",
-                                "range": null,
+                                "range": [
+                                    0,
+                                    4
+                                ],
                                 "title": "Thread priority for the drawing thread",
                                 "type": "int"
                             },

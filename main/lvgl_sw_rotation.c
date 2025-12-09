@@ -25,6 +25,7 @@
 #include "esp_lcd_jd9365.h"
 #include "esp_lcd_st7701.h"
 #include "esp_lcd_touch_cst816s.h"
+#include "rx8025t.h" // RTC Driver
 // #include "esp_lcd_touch_gsl3680.h" // Removed to avoid firmware duplication
 
 #define ESP_LCD_TOUCH_IO_I2C_GSL3680_ADDRESS (0x40)
@@ -55,6 +56,23 @@ static const char *TAG = "BarGauge";
 // WiFi status
 static bool wifi_connected = false;
 static char time_str[32] = "--:--:--";
+static lv_obj_t *time_label = NULL; // Time display label
+
+// Timer callback to update time display
+static void update_time_timer_cb(lv_timer_t *timer) {
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    
+    // Only update if year is valid (> 2020) to avoid showing epoch
+    if (timeinfo.tm_year > (2020 - 1900)) {
+        strftime(time_str, sizeof(time_str), "%H:%M:%S", &timeinfo);
+        if (time_label) {
+            lv_label_set_text(time_label, time_str);
+        }
+    }
+}
 
 
 #define BSP_MIPI_DSI_PHY_PWR_LDO_CHAN       (3)  // LDO_VO3 is connected to VDD_MIPI_DPHY
@@ -95,6 +113,20 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 static void time_sync_notification_cb(struct timeval *tv)
 {
     ESP_LOGI(TAG, "NTP time synchronized");
+    
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    
+    // Save to RTC when NTP syncs
+    // Need to use localtime because RTC stores "wall clock" time without timezone info
+    // But rx8025t_set_time expects struct tm
+    if (rx8025t_set_time(&timeinfo) == ESP_OK) {
+        ESP_LOGI(TAG, "RTC updated from NTP");
+    } else {
+        ESP_LOGE(TAG, "Failed to update RTC from NTP");
+    }
 } 
 
 static const jd9365_lcd_init_cmd_t lcd_cmd[] = {
@@ -448,6 +480,30 @@ void app_main(void)
     };
     i2c_new_master_bus(&i2c_bus_conf, &i2c_handle);
 
+    // Initialize RTC (shares I2C bus)
+    rx8025t_init(i2c_handle);
+    
+    // Set Timezone to Kuala Lumpur (GMT+8)
+    // POSIX format: "MYT-8" (standard-offset, so -8 means GMT+8)
+    setenv("TZ", "MYT-8", 1);
+    tzset();
+    
+    // Try to load time from RTC on boot
+    struct tm rtc_time;
+    if (rx8025t_get_time(&rtc_time) == ESP_OK) {
+        // RTC read successful
+        if (rtc_time.tm_year > (2020 - 1900)) { // Simple validity check
+            time_t t = mktime(&rtc_time);
+            struct timeval now = { .tv_sec = t };
+            settimeofday(&now, NULL);
+            ESP_LOGI(TAG, "System time set from RTC: %s", asctime(&rtc_time));
+        } else {
+            ESP_LOGW(TAG, "RTC time invalid, skipping system set");
+        }
+    } else {
+        ESP_LOGW(TAG, "Failed to read RTC on boot");
+    }
+
     static esp_ldo_channel_handle_t phy_pwr_chan = NULL;
     esp_ldo_channel_config_t ldo_cfg = {
         .chan_id = BSP_MIPI_DSI_PHY_PWR_LDO_CHAN,
@@ -604,6 +660,16 @@ void app_main(void)
         lv_obj_set_style_text_font(value_label, &lv_font_montserrat_14, 0);
         lv_obj_set_style_text_color(value_label, lv_color_hex(0xFFFFFF), 0);
         lv_obj_align(value_label, LV_ALIGN_CENTER, 0, 50);
+        
+        // Digital Clock (Top Center)
+        time_label = lv_label_create(main_screen);
+        lv_label_set_text(time_label, "--:--:--");
+        lv_obj_set_style_text_font(time_label, &lv_font_montserrat_24, 0);
+        lv_obj_set_style_text_color(time_label, lv_color_hex(0x00BFFF), 0); // Deep Sky Blue
+        lv_obj_align(time_label, LV_ALIGN_TOP_MID, 0, 10); // Above title
+        
+        // Create a 1-second timer to update the clock
+        lv_timer_create(update_time_timer_cb, 1000, NULL);
         
         // Info labels (Min, Max, Threshold)
         lv_obj_t *info_label = lv_label_create(main_screen);

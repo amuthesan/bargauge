@@ -27,7 +27,9 @@
   - **Interface**: SDIO (Slot 1)
   - **Correction**: GPIO 54 (Reset)
   - **Status**: Integrated and Functional
-- **RTC**: RX8025T (Planned for Phase 2)
+- **RTC**: RX8025T (I2C @ 0x32)
+  - **Driver**: Custom `rx8025t.c/h`
+  - **Sync**: NTP -> RTC on connection
 - **Touch**: GSL3680 (I2C @ 0x40)
 
 ## Software Configuration
@@ -37,6 +39,7 @@
 - **Task Priority**: High (4)
 - **Core Affinity**: Core 0
 - **Direct Mode**: Enabled (Avoid Tear Mode 2)
+- **Fonts**: Montserrat (12, 14, 16, 18, 20, 22, 24, 26, 32)
 
 ### Partition Table
 - **Scheme**: Custom (`partitions.csv`)

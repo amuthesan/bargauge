@@ -18,7 +18,7 @@ set(HEAD_HASH)
 file(READ "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/CMakeFiles/git-data/HEAD" HEAD_CONTENTS LIMIT 1024)
 
 string(STRIP "${HEAD_CONTENTS}" HEAD_CONTENTS)
-set(GIT_DIR "/Users/amuthesan/esp/v5.4.1/esp-idf/.git")
+set(GIT_DIR "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/.git")
 # handle git-worktree
 if(EXISTS "${GIT_DIR}/commondir")
 	file(READ "${GIT_DIR}/commondir" GIT_DIR_NEW LIMIT 1024)
