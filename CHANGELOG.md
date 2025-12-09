@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.3.7
+- **Settings Tabs:** Organized configuration into "Gauge Config" and "System Info" tabs.
+- **System Info:** added tab displaying Firmware Version, WiFi Status, and IP Address.
+- **Refactoring:** Improved settings screen structure using `lv_tabview`.
+
 ## v0.3.6
 - **16-Gauge Expansion:** Support for 16 gauges across 2 pages.
 - **Paging Support:** Navigation buttons (Next/Prev) with automatic rendering optimization.

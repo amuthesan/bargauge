@@ -58,6 +58,7 @@ static const char *TAG = "BarGauge";
 
 // WiFi status
 static bool wifi_connected = false;
+static char system_ip_str[32] = "N/A"; // Defined before handler
 // Duplicate time_label and callback removed
 
 
@@ -91,7 +92,11 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
-        wifi_connected = true;
+    
+    // Update Global IP String
+    snprintf(system_ip_str, sizeof(system_ip_str), IPSTR, IP2STR(&event->ip_info.ip));
+    
+    wifi_connected = true;
     }
 }
 
@@ -712,71 +717,110 @@ static void dd_event_cb(lv_event_t * e) {
         char buf[16];
         snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].min_val);
         lv_textarea_set_text(ta_min, buf);
-        // Important: Update User Data pointers for INT fields? 
-        // No, user data was pointer to struct field. Struct field address changes!
-        // We must RE-ASSIGN event callbacks or use a different approach.
-        // Easier: Use global `gauge_configs[current_edit_index]` index in the callback itself instead of pointer.
-        // But the callback logic currently uses `int*`.
-        // FIX: Reroute callback logic to use current_edit_index.
+        
+        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].max_val);
+        lv_textarea_set_text(ta_max, buf);
+        
+        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].blue_limit);
+        lv_textarea_set_text(ta_blue, buf);
+        
+        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].yellow_limit);
+        lv_textarea_set_text(ta_yellow, buf);
     }
 }
 
 static void create_settings_screen(void) {
     settings_screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(settings_screen, lv_color_hex(0x000000), 0);
-    lv_obj_set_flex_flow(settings_screen, LV_FLEX_FLOW_COLUMN);
-    // Align Start so we can scroll if needed, but centering horizontally
-    lv_obj_set_flex_align(settings_screen, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_all(settings_screen, 20, 0);
+    lv_obj_set_layout(settings_screen, 0); // Disable flex to allow custom placement if needed, or keeping it clean
+    // Actually, for TabView to take full space, better no flex on main container or simple layout.
+    // Let's use basic container.
 
-    // Header
-    lv_obj_t * header = lv_label_create(settings_screen);
-    lv_label_set_text(header, "Configuration");
-    lv_obj_set_style_text_font(header, &lv_font_montserrat_32, 0); // Larger Header
-    lv_obj_set_style_text_color(header, lv_color_hex(0xFFFFFF), 0);
-    // lv_obj_set_style_pad_bottom(header, 30, 0);
+    // 1. TabView
+    lv_obj_t * tabview = lv_tabview_create(settings_screen);
+    lv_tabview_set_tab_bar_position(tabview, LV_DIR_TOP);
+    lv_tabview_set_tab_bar_size(tabview, 50); // Correct API
+    
+    lv_obj_set_size(tabview, LV_PCT(100), LV_PCT(90)); // Leave 10% bottom for Back button?
+    lv_obj_align(tabview, LV_ALIGN_TOP_MID, 0, 0);
+    
+    lv_obj_set_style_bg_color(tabview, lv_color_hex(0x000000), 0);
+    
+    // Style Tab Buttons
+    lv_obj_t * tab_btns = lv_tabview_get_tab_btns(tabview);
+    lv_obj_set_style_bg_color(tab_btns, lv_color_hex(0x202020), 0);
+    lv_obj_set_style_text_color(tab_btns, lv_color_hex(0x888888), 0);
+    lv_obj_set_style_text_color(tab_btns, lv_color_hex(0xFFFFFF), LV_STATE_CHECKED);
+    lv_obj_set_style_text_font(tab_btns, &lv_font_montserrat_20, 0);
+
+    // --- Tab 1: Gauge Config ---
+    lv_obj_t * tab1 = lv_tabview_add_tab(tabview, "Gauge Config");
+    lv_obj_set_flex_flow(tab1, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(tab1, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_top(tab1, 20, 0);
 
     // Dropdown to Select Gauge
-    lv_obj_t * dd = lv_dropdown_create(settings_screen);
-    // 16 Options manually or generated? Manual string is safer for LVGL version compat
+    lv_obj_t * dd = lv_dropdown_create(tab1);
     lv_dropdown_set_options(dd, "Gauge 1\nGauge 2\nGauge 3\nGauge 4\nGauge 5\nGauge 6\nGauge 7\nGauge 8\n"
                                 "Gauge 9\nGauge 10\nGauge 11\nGauge 12\nGauge 13\nGauge 14\nGauge 15\nGauge 16");
     lv_obj_set_width(dd, 200);
     lv_dropdown_set_selected(dd, current_edit_index);
     lv_obj_add_event_cb(dd, dd_event_cb, LV_EVENT_ALL, NULL);
-    lv_obj_set_style_margin_bottom(dd, 10, 0); // Reduced margin
+    lv_obj_set_style_margin_bottom(dd, 10, 0);
 
-    // Rows - Using simplified callback logic
-    // Now passing PRE-FORMATTED strings and INT IDs
-    
-    ta_name = create_config_row(settings_screen, "Gauge Name", gauge_configs[current_edit_index].name, 0, 1);
-    ta_unit = create_config_row(settings_screen, "Gauge Unit", gauge_configs[current_edit_index].unit, 0, 2);
+    // Rows
+    ta_name = create_config_row(tab1, "Gauge Name", gauge_configs[current_edit_index].name, 0, 1);
+    ta_unit = create_config_row(tab1, "Gauge Unit", gauge_configs[current_edit_index].unit, 0, 2);
     
     char buf[16];
-    // Min
     snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].min_val);
-    ta_min = create_config_row(settings_screen, "Min Value", buf, 10, 0);
+    ta_min = create_config_row(tab1, "Min Value", buf, 10, 0);
     
-    // Max
     snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].max_val);
-    ta_max = create_config_row(settings_screen, "Max Value", buf, 11, 0);
+    ta_max = create_config_row(tab1, "Max Value", buf, 11, 0);
     
-    // Blue
     snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].blue_limit);
-    ta_blue = create_config_row(settings_screen, "Blue Limit", buf, 12, 0);
+    ta_blue = create_config_row(tab1, "Blue Limit", buf, 12, 0);
     
-    // Yellow
     snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].yellow_limit);
-    ta_yellow = create_config_row(settings_screen, "Yellow Limit", buf, 13, 0);
+    ta_yellow = create_config_row(tab1, "Yellow Limit", buf, 13, 0);
 
-    // Back Button (At bottom of scroll)
+    // --- Tab 2: System Info ---
+    lv_obj_t * tab2 = lv_tabview_add_tab(tabview, "System Info");
+    lv_obj_set_flex_flow(tab2, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(tab2, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    
+    // Version
+    lv_obj_t * lbl_ver = lv_label_create(tab2);
+    lv_label_set_text(lbl_ver, "App Version: v0.3.7");
+    lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
+    
+    // WiFi Status
+    lv_obj_t * lbl_wifi = lv_label_create(tab2);
+    lv_label_set_text_fmt(lbl_wifi, "WiFi Status: %s", wifi_connected ? "Connected" : "Disconnected#AA0000"); 
+    // Manual color coding string? No, simple text for now.
+    if(wifi_connected) lv_obj_set_style_text_color(lbl_wifi, lv_color_hex(0x00FF00), 0);
+    else lv_obj_set_style_text_color(lbl_wifi, lv_color_hex(0xFF0000), 0);
+    lv_obj_set_style_text_font(lbl_wifi, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_margin_bottom(lbl_wifi, 20, 0);
+    
+    // IP Address
+    lv_obj_t * lbl_ip = lv_label_create(tab2);
+    lv_label_set_text_fmt(lbl_ip, "IP Address: %s", system_ip_str);
+    lv_obj_set_style_text_font(lbl_ip, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(lbl_ip, lv_color_hex(0xAAAAAA), 0);
+
+
+    // 2. Back Button (Bottom Fixed)
     lv_obj_t * btn = lv_btn_create(settings_screen);
     lv_obj_set_size(btn, 200, 60);
+    lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -20);
     lv_obj_add_event_cb(btn, back_from_settings_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_set_style_bg_color(btn, lv_color_hex(0x202020), 0);
     lv_obj_set_style_border_color(btn, lv_color_hex(0x505050), 0);
     lv_obj_set_style_border_width(btn, 2, 0);
-    lv_obj_set_style_margin_top(btn, 20, 0);
     
     lv_obj_t * lbl = lv_label_create(btn);
     lv_label_set_text(lbl, LV_SYMBOL_UP " Back");
@@ -784,7 +828,7 @@ static void create_settings_screen(void) {
     lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
     lv_obj_center(lbl);
     
-    // Keyboard (Create last so it's on top)
+    // Keyboard (Global on top)
     kb = lv_keyboard_create(settings_screen);
     lv_obj_set_size(kb, 800, 300); // Half Screen
     lv_obj_align(kb, LV_ALIGN_BOTTOM_MID, 0, 0); // Stick to bottom
