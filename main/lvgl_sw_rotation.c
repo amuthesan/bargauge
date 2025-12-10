@@ -431,6 +431,8 @@ typedef struct {
     int yellow_limit; // blue_limit to yellow_limit (Yellow)
     int red_limit;    // yellow_limit to red_limit (Warning?? No, usually Red starts here)
     int threshold;    // Future use
+    int analog_min;   // Raw Analog Input Min (e.g. 4000)
+    int analog_max;   // Raw Analog Input Max (e.g. 20000)
 } GasGaugeConfig;
 
 typedef struct {
@@ -488,6 +490,8 @@ static void load_gauge_configs(void) {
         gauge_configs[i].yellow_limit = 70;
         gauge_configs[i].red_limit = 100;
         gauge_configs[i].threshold = 80;
+        gauge_configs[i].analog_min = 4000;
+        gauge_configs[i].analog_max = 20000;
     }
     // Safety Defaults
     safety_config.master_relay_index = 0; // None
@@ -517,6 +521,8 @@ static void load_gauge_configs(void) {
                     gauge_configs[i].blue_limit = 30;
                     gauge_configs[i].yellow_limit = 70;
                     gauge_configs[i].red_limit = 100;
+                    gauge_configs[i].analog_min = 4000;
+                    gauge_configs[i].analog_max = 20000;
                 }
             }
             return;
@@ -552,6 +558,8 @@ static lv_obj_t * ta_min = NULL;
 static lv_obj_t * ta_max = NULL;
 static lv_obj_t * ta_blue = NULL;
 static lv_obj_t * ta_yellow = NULL;
+static lv_obj_t * ta_analog_min = NULL;
+static lv_obj_t * ta_analog_max = NULL;
 
 static lv_obj_t * sys_wifi_label = NULL;
 static lv_obj_t * sys_ip_label = NULL;
@@ -588,6 +596,11 @@ static void back_from_settings_cb(lv_event_t * e) {
         }
         if (gauge_unit_labels[current_edit_index]) {
             lv_label_set_text(gauge_unit_labels[current_edit_index], gauge_configs[current_edit_index].unit);
+        }
+        
+        // Update Arc Range dynamically
+        if (gauge_arcs[current_edit_index]) {
+            lv_arc_set_range(gauge_arcs[current_edit_index], gauge_configs[current_edit_index].min_val, gauge_configs[current_edit_index].max_val);
         }
         
         // Save to NVS
@@ -663,12 +676,12 @@ static void int_val_ta_cb(lv_event_t * e) {
         const char * txt = lv_textarea_get_text(ta);
         int val = atoi(txt);
         
-        switch(field_id) {
-            case 10: gauge_configs[current_edit_index].min_val = val; break;
-            case 11: gauge_configs[current_edit_index].max_val = val; break;
-            case 12: gauge_configs[current_edit_index].blue_limit = val; break;
-            case 13: gauge_configs[current_edit_index].yellow_limit = val; break;
-        }
+        if(field_id == 10) gauge_configs[current_edit_index].min_val = val;
+        else if(field_id == 11) gauge_configs[current_edit_index].max_val = val;
+        else if(field_id == 12) gauge_configs[current_edit_index].blue_limit = val;
+        else if(field_id == 13) gauge_configs[current_edit_index].yellow_limit = val;
+        else if(field_id == 14) gauge_configs[current_edit_index].analog_min = val;
+        else if(field_id == 15) gauge_configs[current_edit_index].analog_max = val;
     }
     
     // Manual Keyboard Logic
@@ -716,7 +729,7 @@ static lv_obj_t * create_config_row(lv_obj_t * parent, const char * title, const
         lv_textarea_set_max_length(ta, 15);
         lv_obj_add_event_cb(ta, unit_ta_cb, LV_EVENT_ALL, (void*)1); 
     } else { // Int
-        lv_textarea_set_max_length(ta, 4); // Max 4 digits
+        lv_textarea_set_max_length(ta, 5); // Max 5 digits
         // Pass int ID as User Data
         lv_obj_add_event_cb(ta, int_val_ta_cb, LV_EVENT_ALL, (void*)id); 
     }
@@ -745,6 +758,12 @@ static void dd_event_cb(lv_event_t * e) {
         
         snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].yellow_limit);
         lv_textarea_set_text(ta_yellow, buf);
+
+        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].analog_min);
+        lv_textarea_set_text(ta_analog_min, buf);
+
+        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].analog_max);
+        lv_textarea_set_text(ta_analog_max, buf);
     }
 }
 
@@ -803,16 +822,22 @@ static void create_settings_screen(void) {
     
     char buf[16];
     snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].min_val);
-    ta_min = create_config_row(tab1, "Min Value", buf, 10, 0);
+    ta_min = create_config_row(tab1, "Gauge Min", buf, 10, 0);
     
     snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].max_val);
-    ta_max = create_config_row(tab1, "Max Value", buf, 11, 0);
+    ta_max = create_config_row(tab1, "Gauge Max", buf, 11, 0);
     
     snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].blue_limit);
     ta_blue = create_config_row(tab1, "Blue Limit", buf, 12, 0);
     
     snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].yellow_limit);
     ta_yellow = create_config_row(tab1, "Yellow Limit", buf, 13, 0);
+
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].analog_min);
+    ta_analog_min = create_config_row(tab1, "Analog In Min", buf, 14, 0);
+
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].analog_max);
+    ta_analog_max = create_config_row(tab1, "Analog In Max", buf, 15, 0);
 
     // --- Tab 2: System Info ---
     lv_obj_t * tab2 = lv_tabview_add_tab(tabview, "System Info");
@@ -938,10 +963,13 @@ static lv_obj_t* create_gas_widget(lv_obj_t *parent, int index) {
     // 3. Digital Value
     lv_obj_t * val_lbl = lv_label_create(container);
     lv_label_set_text(val_lbl, "0");
+    lv_obj_set_width(val_lbl, 200); // Fixed Width (Matches Arc)
+    lv_label_set_long_mode(val_lbl, LV_LABEL_LONG_CLIP); // Prevent auto-resize width
     lv_obj_set_style_text_font(val_lbl, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(val_lbl, lv_color_hex(0xFFFFFF), 0);
-    // Align inside arc center, slightly adjusted for visual center
-    lv_obj_align_to(val_lbl, arc, LV_ALIGN_CENTER, -3, 0);
+    lv_obj_set_style_text_align(val_lbl, LV_TEXT_ALIGN_CENTER, 0); // Force Center Text
+    // Align inside arc center
+    lv_obj_align_to(val_lbl, arc, LV_ALIGN_CENTER, 0, 0); 
     
     gauge_labels[index] = val_lbl;
 
@@ -1038,8 +1066,20 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
         for (int i = start_idx; i < end_idx; i++) {
             if (gauge_arcs[i] && gauge_labels[i]) {
                 // Read from Modbus Data
-                int val = sys_modbus_data.analog_vals[i];
+                int raw_val = sys_modbus_data.analog_vals[i];
                 
+                // Map Value
+                // map(x, in_min, in_max, out_min, out_max)
+                long in_min = gauge_configs[i].analog_min;
+                long in_max = gauge_configs[i].analog_max;
+                long out_min = gauge_configs[i].min_val;
+                long out_max = gauge_configs[i].max_val;
+                
+                int val = raw_val; // Default
+                if ((in_max - in_min) != 0) {
+                     val = (int)((raw_val - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
+                }
+
                 // Check connection status
                 bool connected = (i < 8) ? sys_modbus_data.connected[0] : sys_modbus_data.connected[1];
                 

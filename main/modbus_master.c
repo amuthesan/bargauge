@@ -132,7 +132,11 @@ static void modbus_poll_task(void *arg) {
         uint8_t btn_packed = 0;
         err = mbc_master_get_parameter(CID_BUTTONS, "Button 1-4", &btn_packed, &type);
         if (err == ESP_OK) {
-             for(int i=0; i<4; i++) sys_modbus_data.buttons[i] = (btn_packed >> i) & 1;
+             for(int i=0; i<4; i++) {
+                 bool val = (btn_packed >> i) & 1;
+                 if (i == 0) val = !val; // Invert Button 1 (Index 0) for NC switch
+                 sys_modbus_data.buttons[i] = val;
+             }
         }
         
         vTaskDelay(pdMS_TO_TICKS(500)); // Update every 500ms

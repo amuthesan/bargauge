@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.1] - 2025-12-10
+### Added
+- **5-Digit Value Support**: Increased max gauge value digits from 4 to 5.
+- **Dynamic Gauge Range**: Gauge arc visuals now dynamically scale based on configured min/max values.
+- **Analog Mapping**: Added "Analog In Min/Max" vs "Gauge Min/Max" support. Raw sensor values (e.g., 4000-20000) are automatically mapped to real-world gauge units (e.g., 0-100m).
+- **Alignment Fix**: Implemented robust centering for gauge values (Fixed 200px width + Center Align).
+
+### Changed
+- **Settings UI**: Renamed "Min/Max Value" to "Gauge Min/Max" for clarity.
+
 ## [v0.5.0] - 2025-12-10
 ### Fixed
 - **Modbus Connectivity**: Fixed `mdd:err` by swapping UART pins (TX: GPIO 38, RX: GPIO 37).
