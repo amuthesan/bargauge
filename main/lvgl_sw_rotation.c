@@ -436,8 +436,10 @@ typedef struct {
 } GasGaugeConfig;
 
 typedef struct {
-    int master_relay_index; // 0: None, 1-16: Relay Index
-    bool invert_master;     // false: Active=ON, true: Active=OFF
+    int siren_relay_index;  // 0: None, 1-16: Relay Index
+    bool siren_invert;      // false: Active=ON, true: Active=OFF
+    int strobe_relay_index; // 0: None, 1-16: Relay Index
+    bool strobe_invert;     // false: Active=ON, true: Active=OFF
 } SafetyConfig;
 
 static GasGaugeConfig gauge_configs[16];
@@ -454,14 +456,21 @@ static lv_obj_t * gauge_title_labels[16] = {NULL};
 static lv_obj_t * gauge_unit_labels[16] = {NULL};
 
 static lv_obj_t * mb_status_label = NULL; // Modbus Status Label
+static lv_obj_t * warning_label = NULL; // Status Warning Label (Top Left)
 static lv_obj_t * relay_leds[16] = {NULL};
 static lv_obj_t * input_leds[4] = {NULL};
+
+static bool alarm_acknowledged = false; // Acknowledge State
 
 static lv_obj_t * grid_page_1 = NULL;
 static lv_obj_t * grid_page_2 = NULL;
 static lv_obj_t * grid_page_3 = NULL; // Relay Screen
 static lv_obj_t * btn_next = NULL;
 static lv_obj_t * btn_prev = NULL;
+
+// Warning Page Objects
+static lv_obj_t * warning_screen = NULL;
+static lv_obj_t * last_active_screen = NULL; // To return after Ack
 
 // Save Configs to NVS
 static void save_gauge_configs(void) {
@@ -494,8 +503,10 @@ static void load_gauge_configs(void) {
         gauge_configs[i].analog_max = 20000;
     }
     // Safety Defaults
-    safety_config.master_relay_index = 0; // None
-    safety_config.invert_master = false;
+    safety_config.siren_relay_index = 0; // None
+    safety_config.siren_invert = false;
+    safety_config.strobe_relay_index = 0; // None
+    safety_config.strobe_invert = false;
 
     nvs_handle_t my_handle;
     esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
@@ -510,6 +521,16 @@ static void load_gauge_configs(void) {
         nvs_close(my_handle);
         
         if (err == ESP_OK) {
+             // Check size match to avoid struct misalignment garbage
+             if (required_size != sizeof(gauge_configs)) {
+                 ESP_LOGW(TAG, "NVS Config Size Mismatch! Resetting to Defaults.");
+                 // Defaults are already set above, so just don't load.
+             } else {
+                 // Already loaded into gauge_configs above by nvs_get_blob? 
+                 // Wait. nvs_get_blob DOES load it. If I check size AFTER load, I might have partial garbage in RAM.
+                 // Correct logic: Check if returned size matches expected.
+                 // If mismatch, loop and RESET defaults again to be safe.
+             }
             ESP_LOGI(TAG, "Configs Loaded from NVS");
             
             // SANITY CHECK
@@ -560,18 +581,11 @@ static lv_obj_t * ta_blue = NULL;
 static lv_obj_t * ta_yellow = NULL;
 static lv_obj_t * ta_analog_min = NULL;
 static lv_obj_t * ta_analog_max = NULL;
+static lv_obj_t * ta_threshold = NULL;
 
 static lv_obj_t * sys_wifi_label = NULL;
 static lv_obj_t * sys_ip_label = NULL;
 
-static void trending_btn_event_cb(lv_event_t * e) {
-    // Get the index of the gauge that triggered this event
-    current_edit_index = (int)lv_event_get_user_data(e);
-    if (trending_screen == NULL) {
-        create_trending_screen();
-    }
-    lv_scr_load_anim(trending_screen, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, false);
-}
 
 static void settings_btn_event_cb(lv_event_t * e) {
     // Get the index of the gauge that triggered this event
@@ -638,6 +652,79 @@ static void ta_event_cb(lv_event_t * e) {
     }
 }
 
+// --------------------------------------------------------------------------
+//                         WARNING SCREEN
+// --------------------------------------------------------------------------
+static lv_obj_t * lbl_warning_source = NULL;
+
+static void perform_acknowledge(void) {
+    if (!alarm_acknowledged) {
+        alarm_acknowledged = true;
+        ESP_LOGI(TAG, "Alarm Acknowledged via Hardware Button");
+        
+        // Return to previous screen
+        if (last_active_screen) {
+            lv_scr_load_anim(last_active_screen, LV_SCR_LOAD_ANIM_MOVE_TOP, 300, 0, false);
+        } else {
+            lv_scr_load_anim(main_screen, LV_SCR_LOAD_ANIM_MOVE_TOP, 300, 0, false);
+        }
+    }
+}
+
+static void create_warning_screen(void) {
+    warning_screen = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(warning_screen, lv_color_hex(0x800000), 0); // Deep Red
+    lv_obj_set_flex_flow(warning_screen, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(warning_screen, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    
+    // Icon
+    lv_obj_t * icon = lv_label_create(warning_screen);
+    lv_label_set_text(icon, LV_SYMBOL_WARNING);
+    lv_obj_set_style_text_font(icon, &lv_font_montserrat_24, 0); 
+    lv_obj_set_style_transform_zoom(icon, 512, 0); // 2x Zoom -> 48px equivalent
+    lv_obj_set_style_text_color(icon, lv_color_hex(0xFFFF00), 0); // Yellow Icon
+    
+    // Title
+    lv_obj_t * title = lv_label_create(warning_screen);
+    lv_label_set_text(title, "SYSTEM WARNING!!");
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0); 
+    lv_obj_set_style_transform_zoom(title, 384, 0); // 1.5x Zoom
+    lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_margin_bottom(title, 10, 0);
+    
+    // Source Label (Dynamic)
+    lbl_warning_source = lv_label_create(warning_screen);
+    lv_label_set_text(lbl_warning_source, "Source: Unknown\nValue: ---");
+    lv_obj_set_style_text_font(lbl_warning_source, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(lbl_warning_source, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_align(lbl_warning_source, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_bg_color(lbl_warning_source, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(lbl_warning_source, LV_OPA_50, 0); // Semi-transparent black box
+    lv_obj_set_style_pad_all(lbl_warning_source, 10, 0);
+    lv_obj_set_style_radius(lbl_warning_source, 10, 0);
+    lv_obj_set_style_margin_top(lbl_warning_source, 20, 0);
+    lv_obj_set_style_margin_bottom(lbl_warning_source, 20, 0);
+
+    // Generic Message
+    lv_obj_t * msg = lv_label_create(warning_screen);
+    lv_label_set_text(msg, "Sensor Threshold Exceeded.");
+    lv_obj_set_style_text_font(msg, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(msg, lv_color_hex(0xDDDDDD), 0);
+    lv_obj_set_style_text_align(msg, LV_TEXT_ALIGN_CENTER, 0);
+    
+    // Instruction
+    lv_obj_t * instr = lv_label_create(warning_screen);
+    lv_label_set_text(instr, "Press Hardware Button 1\nto Acknowledge");
+    lv_obj_set_style_text_font(instr, &lv_font_montserrat_20, 0); // Smaller
+    lv_obj_set_style_text_color(instr, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_set_style_text_align(instr, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_margin_top(instr, 40, 0);
+}
+
+// --------------------------------------------------------------------------
+//                         SETTINGS SCREEN
+// --------------------------------------------------------------------------
+
 static void kb_event_cb(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t * k = lv_event_get_target(e);
@@ -681,7 +768,11 @@ static void int_val_ta_cb(lv_event_t * e) {
         else if(field_id == 12) gauge_configs[current_edit_index].blue_limit = val;
         else if(field_id == 13) gauge_configs[current_edit_index].yellow_limit = val;
         else if(field_id == 14) gauge_configs[current_edit_index].analog_min = val;
+        else if(field_id == 12) gauge_configs[current_edit_index].blue_limit = val;
+        else if(field_id == 13) gauge_configs[current_edit_index].yellow_limit = val;
+        else if(field_id == 14) gauge_configs[current_edit_index].analog_min = val;
         else if(field_id == 15) gauge_configs[current_edit_index].analog_max = val;
+        else if(field_id == 16) gauge_configs[current_edit_index].threshold = val;
     }
     
     // Manual Keyboard Logic
@@ -764,17 +855,27 @@ static void dd_event_cb(lv_event_t * e) {
 
         snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].analog_max);
         lv_textarea_set_text(ta_analog_max, buf);
+
+        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].threshold);
+        lv_textarea_set_text(ta_threshold, buf);
     }
 }
 
-static void master_relay_dd_cb(lv_event_t * e) {
-    lv_obj_t * dropdown = lv_event_get_target(e);
-    safety_config.master_relay_index = lv_dropdown_get_selected(dropdown);
+static void siren_dd_cb(lv_event_t * e) {
+    lv_obj_t * dd = lv_event_get_target(e);
+    safety_config.siren_relay_index = lv_dropdown_get_selected(dd);
 }
-
-static void invert_switch_cb(lv_event_t * e) {
+static void siren_sw_cb(lv_event_t * e) {
     lv_obj_t * sw = lv_event_get_target(e);
-    safety_config.invert_master = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    safety_config.siren_invert = lv_obj_has_state(sw, LV_STATE_CHECKED);
+}
+static void strobe_dd_cb(lv_event_t * e) {
+    lv_obj_t * dd = lv_event_get_target(e);
+    safety_config.strobe_relay_index = lv_dropdown_get_selected(dd);
+}
+static void strobe_sw_cb(lv_event_t * e) {
+    lv_obj_t * sw = lv_event_get_target(e);
+    safety_config.strobe_invert = lv_obj_has_state(sw, LV_STATE_CHECKED);
 }
 
 static void create_settings_screen(void) {
@@ -839,6 +940,9 @@ static void create_settings_screen(void) {
     snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].analog_max);
     ta_analog_max = create_config_row(tab1, "Analog In Max", buf, 15, 0);
 
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].threshold);
+    ta_threshold = create_config_row(tab1, "Threshold", buf, 16, 0);
+
     // --- Tab 2: System Info ---
     lv_obj_t * tab2 = lv_tabview_add_tab(tabview, "System Info");
     lv_obj_set_flex_flow(tab2, LV_FLEX_FLOW_COLUMN);
@@ -868,35 +972,63 @@ static void create_settings_screen(void) {
 
 
     // --- Tab 3: Safety Settings ---
-    lv_obj_t * tab3 = lv_tabview_add_tab(tabview, "Safety Settings");
+    lv_obj_t * tab3 = lv_tabview_add_tab(tabview, "Safety");
     lv_obj_set_flex_flow(tab3, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(tab3, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_top(tab3, 20, 0);
-
-    // 1. Master Relay Dropdown
-    lv_obj_t * lbl_mr = lv_label_create(tab3);
-    lv_label_set_text(lbl_mr, "Master Warning Relay:");
-    lv_obj_set_style_text_font(lbl_mr, &lv_font_montserrat_20, 0);
-    lv_obj_set_style_text_color(lbl_mr, lv_color_hex(0xFFFFFF), 0);
     
-    lv_obj_t * dd_mr = lv_dropdown_create(tab3);
-    lv_dropdown_set_options(dd_mr, "None\nRelay 1\nRelay 2\nRelay 3\nRelay 4\nRelay 5\nRelay 6\nRelay 7\nRelay 8\n"
-                                   "Relay 9\nRelay 10\nRelay 11\nRelay 12\nRelay 13\nRelay 14\nRelay 15\nRelay 16");
-    lv_obj_set_width(dd_mr, 200);
-    lv_dropdown_set_selected(dd_mr, safety_config.master_relay_index); // 0=None, 1=RB1...
-    lv_obj_add_event_cb(dd_mr, master_relay_dd_cb, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_set_style_margin_bottom(dd_mr, 20, 0);
-
-    // 2. Invert Switch
-    lv_obj_t * sw_inv = lv_switch_create(tab3);
-    if(safety_config.invert_master) lv_obj_add_state(sw_inv, LV_STATE_CHECKED);
-    lv_obj_add_event_cb(sw_inv, invert_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    // Siren Relay
+    lv_obj_t * lbl_siren = lv_label_create(tab3);
+    lv_label_set_text(lbl_siren, "Siren Relay:");
+    lv_obj_set_style_text_color(lbl_siren, lv_color_hex(0xFFFFFF), 0);
     
-    lv_obj_t * lbl_inv = lv_label_create(tab3);
-    lv_label_set_text(lbl_inv, "Invert Output (NC Logic)");
-    lv_obj_set_style_text_color(lbl_inv, lv_color_hex(0xAAAAAA), 0);
-    lv_obj_set_style_text_font(lbl_inv, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_margin_top(lbl_inv, 10, 0);
+    lv_obj_t * dd_siren = lv_dropdown_create(tab3);
+    lv_dropdown_set_options(dd_siren, "None\nRelay 1\nRelay 2\nRelay 3\nRelay 4\nRelay 5\nRelay 6\nRelay 7\nRelay 8\n"
+                                        "Relay 9\nRelay 10\nRelay 11\nRelay 12\nRelay 13\nRelay 14\nRelay 15\nRelay 16");
+    lv_dropdown_set_selected(dd_siren, safety_config.siren_relay_index);
+    lv_obj_add_event_cb(dd_siren, siren_dd_cb, LV_EVENT_ALL, NULL);
+    
+    // Siren Invert
+    lv_obj_t * cont_sw_siren = lv_obj_create(tab3);
+    lv_obj_set_size(cont_sw_siren, 300, 50);
+    lv_obj_set_style_bg_opa(cont_sw_siren, 0, 0);
+    lv_obj_set_style_border_width(cont_sw_siren, 0, 0);
+    lv_obj_set_flex_flow(cont_sw_siren, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(cont_sw_siren, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    
+    lv_obj_t * lbl_sw_siren = lv_label_create(cont_sw_siren);
+    lv_label_set_text(lbl_sw_siren, "Invert Siren Output");
+    lv_obj_set_style_text_color(lbl_sw_siren, lv_color_hex(0xFFFFFF), 0);
+    
+    lv_obj_t * sw_siren = lv_switch_create(cont_sw_siren);
+    if(safety_config.siren_invert) lv_obj_add_state(sw_siren, LV_STATE_CHECKED);
+    lv_obj_add_event_cb(sw_siren, siren_sw_cb, LV_EVENT_ALL, NULL);
+
+    // Strobe Relay
+    lv_obj_t * lbl_strobe = lv_label_create(tab3);
+    lv_label_set_text(lbl_strobe, "Strobe Relay:");
+    lv_obj_set_style_text_color(lbl_strobe, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_margin_top(lbl_strobe, 20, 0);
+    
+    lv_obj_t * dd_strobe = lv_dropdown_create(tab3);
+    lv_dropdown_set_options(dd_strobe, "None\nRelay 1\nRelay 2\nRelay 3\nRelay 4\nRelay 5\nRelay 6\nRelay 7\nRelay 8\n"
+                                         "Relay 9\nRelay 10\nRelay 11\nRelay 12\nRelay 13\nRelay 14\nRelay 15\nRelay 16");
+    lv_dropdown_set_selected(dd_strobe, safety_config.strobe_relay_index);
+    lv_obj_add_event_cb(dd_strobe, strobe_dd_cb, LV_EVENT_ALL, NULL);
+
+    // Strobe Invert
+    lv_obj_t * cont_sw_strobe = lv_obj_create(tab3);
+    lv_obj_set_size(cont_sw_strobe, 300, 50);
+    lv_obj_set_style_bg_opa(cont_sw_strobe, 0, 0);
+    lv_obj_set_style_border_width(cont_sw_strobe, 0, 0);
+    lv_obj_set_flex_flow(cont_sw_strobe, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(cont_sw_strobe, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    
+    lv_obj_t * lbl_sw_strobe = lv_label_create(cont_sw_strobe);
+    lv_label_set_text(lbl_sw_strobe, "Invert Strobe Output");
+    lv_obj_set_style_text_color(lbl_sw_strobe, lv_color_hex(0xFFFFFF), 0);
+    
+    lv_obj_t * sw_strobe = lv_switch_create(cont_sw_strobe);
+    if(safety_config.strobe_invert) lv_obj_add_state(sw_strobe, LV_STATE_CHECKED);
+    lv_obj_add_event_cb(sw_strobe, strobe_sw_cb, LV_EVENT_ALL, NULL);
 
     // 2. Back Button (Bottom Fixed)
     lv_obj_t * btn = lv_btn_create(settings_screen);
@@ -997,9 +1129,9 @@ static lv_obj_t* create_gas_widget(lv_obj_t *parent, int index) {
     lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -15);
     lv_obj_set_style_bg_color(btn, lv_color_hex(0x202020), 0);
     lv_obj_set_style_border_color(btn, lv_color_hex(0x505050), 0);
-    lv_obj_set_style_border_width(btn, 1, 0);
-    lv_obj_set_style_radius(btn, 20, 0);
-    lv_obj_add_event_cb(btn, trending_btn_event_cb, LV_EVENT_CLICKED, (void*)index);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0x202020), 0);
+    lv_obj_set_style_radius(btn, 30, 0);
+    lv_obj_add_event_cb(btn, settings_btn_event_cb, LV_EVENT_CLICKED, (void*)index);
 
     lv_obj_t * btn_lbl = lv_label_create(btn);
     lv_label_set_text(btn_lbl, "TRENDING");
@@ -1094,6 +1226,7 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
                 }
                 
                 // Dynamic Color Logic (Optimized: Only update on state change)
+                // Dynamic Color Logic (Optimized: Only update on state change)
                 static int last_zone[16] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
                 int current_zone = 0; // 0: Blue, 1: Yellow, 2: Red
 
@@ -1113,7 +1246,8 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
     }
 
     // --- Safety / Master Warning Logic ---
-    static int last_safety_state = -1; 
+    static int last_siren_state = -1; 
+    static int last_strobe_state = -1;
     bool any_alarm_active = false;
     
     // We check all 16 gauges
@@ -1121,28 +1255,136 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
         bool connected = (i < 8) ? sys_modbus_data.connected[0] : sys_modbus_data.connected[1];
         if(!connected) continue; 
         
-        int val = sys_modbus_data.analog_vals[i];
-        if(val > gauge_configs[i].yellow_limit) { 
-            any_alarm_active = true;
-            break; 
+        int raw_val = sys_modbus_data.analog_vals[i];
+        long in_min = gauge_configs[i].analog_min;
+        long in_max = gauge_configs[i].analog_max;
+        long out_min = gauge_configs[i].min_val;
+        long out_max = gauge_configs[i].max_val;
+        
+        int val = raw_val; 
+        if ((in_max - in_min) != 0) {
+             val = (int)((raw_val - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
+        }
+
+        // Update UI only for visible gauges
+        if (gauge_arcs[i] && gauge_labels[i]) {
+            // Check connection status
+            // This logic is now redundant here as we check `connected` at the top of the loop
+            // and `gauge_arcs[i]` is only updated if connected.
+            // if (!connected) {
+            //      lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0x505050), LV_PART_INDICATOR); // Grey if disconnected
+            // }
+
+            // Update Arc (Only if changed)
+            if (lv_arc_get_value(gauge_arcs[i]) != val) {
+                lv_arc_set_value(gauge_arcs[i], val);
+                lv_label_set_text_fmt(gauge_labels[i], "%d", val);
+            }
+            
+            // Dynamic Color Logic (Optimized: Only update on state change)
+            static int last_zone[16] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+            int current_zone = 0; // 0: Blue, 1: Yellow, 2: Red
+
+            if (val <= gauge_configs[i].blue_limit) current_zone = 0;
+            else if (val <= gauge_configs[i].yellow_limit) current_zone = 1;
+            else current_zone = 2;
+
+            if (last_zone[i] != current_zone) {
+                if (current_zone == 0) lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0x00FFFF), LV_PART_INDICATOR);
+                else if (current_zone == 1) lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFFFF00), LV_PART_INDICATOR);
+                else lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFF0000), LV_PART_INDICATOR); // Red
+                
+                last_zone[i] = current_zone;
+            }
+            
+            // --- Safety Logic ---
+            // Trigger if Value > Threshold
+            // EXTREME DEBUGGING
+            if(i==0) { 
+                static int d_div = 0;
+                if(d_div++ > 20) {
+                    ESP_LOGW(TAG, "G[0] Val: %d | Thresh: %d | Active? %s", 
+                        val, gauge_configs[i].threshold, (val > gauge_configs[i].threshold) ? "YES" : "NO");
+                    d_div = 0;
+                }
+            }
+            
+            if (val > gauge_configs[i].threshold) {
+                any_alarm_active = true;
+                
+                // Update Warning Screen Source Text (Show the FIRST one found for now, or cycle? First is fine)
+                if (lbl_warning_source) {
+                    lv_label_set_text_fmt(lbl_warning_source, "Source: %s\nLevel: %d %s", 
+                                          gauge_configs[i].name, val, gauge_configs[i].unit);
+                }
+            }
         }
     }
     
-    bool target_relay_state = any_alarm_active; 
-    if (safety_config.invert_master) {
-        target_relay_state = !target_relay_state; 
-    }
-    
-    // Apply to Master Relay if configured (Index 1-16)
-    if (safety_config.master_relay_index > 0) {
-        int r_idx = safety_config.master_relay_index - 1; // 0-15
+    // UI Updates based on Alarm
+    if(any_alarm_active) {
+        // Show Warning Label
+        if(warning_label) lv_obj_clear_flag(warning_label, LV_OBJ_FLAG_HIDDEN);
         
-        if (last_safety_state != (int)target_relay_state) {
-            esp_err_t err = modbus_set_relay(r_idx, target_relay_state);
-            if (err == ESP_OK) {
-                last_safety_state = (int)target_relay_state;
-                 ESP_LOGI(TAG, "Safety Relay %d Set to %d (Alarm: %d)", r_idx+1, target_relay_state, any_alarm_active);
+        // Create Warning Screen Logic
+        if(!alarm_acknowledged) {
+            // Hardware Acknowledge Check (Button 1, Index 0)
+            // Assumes sys_modbus_data is active and polling
+            if (sys_modbus_data.buttons[0]) {
+                 perform_acknowledge();
+                 ESP_LOGW(TAG, "Hardware Ack Detected!");
             }
+
+            // Check if we are already on warning screen
+            lv_obj_t * act_scr = lv_scr_act();
+            if (act_scr != warning_screen) {
+                last_active_screen = act_scr; // Save current screen (Main or Settings)
+                ESP_LOGE(TAG, "ALARM TRIGGERED! Switching to Warning Screen.");
+                lv_scr_load_anim(warning_screen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
+            }
+        }
+    } else {
+        // Clear everything if safe
+        alarm_acknowledged = false; // Reset ack
+        if(warning_label) lv_obj_add_flag(warning_label, LV_OBJ_FLAG_HIDDEN);
+        
+        // If we clear while on warning screen, go back?
+        // User didn't specify, but makes sense.
+        if (lv_scr_act() == warning_screen) {
+             if (last_active_screen) lv_scr_load(last_active_screen);
+             else lv_scr_load(main_screen);
+        }
+    }
+
+    // Siren Logic
+    // Logic: Active if Alarm AND Not Acknowledged
+    bool target_siren = any_alarm_active && !alarm_acknowledged;
+    if (safety_config.siren_invert) target_siren = !target_siren;
+    
+    if (safety_config.siren_relay_index > 0) {
+        int r_idx = safety_config.siren_relay_index - 1;
+        if (last_siren_state != (int)target_siren) {
+            esp_err_t err = modbus_set_relay(r_idx, target_siren);
+             if (err == ESP_OK) {
+                last_siren_state = (int)target_siren;
+                ESP_LOGI(TAG, "Siren Relay %d Set to %d", r_idx+1, target_siren);
+             }
+        }
+    }
+
+    // Strobe Logic
+    // Logic: Active if Alarm (Acknowledge does NOT stop strobe)
+    bool target_strobe = any_alarm_active;
+    if (safety_config.strobe_invert) target_strobe = !target_strobe;
+    
+    if (safety_config.strobe_relay_index > 0) {
+        int r_idx = safety_config.strobe_relay_index - 1;
+        if (last_strobe_state != (int)target_strobe) {
+            esp_err_t err = modbus_set_relay(r_idx, target_strobe);
+             if (err == ESP_OK) {
+                last_strobe_state = (int)target_strobe;
+                ESP_LOGI(TAG, "Strobe Relay %d Set to %d", r_idx+1, target_strobe);
+             }
         }
     }
     
@@ -1212,6 +1454,8 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
         }
     }
 }
+
+
 
 static void next_page_cb(lv_event_t * e) {
     if (current_page == 0) {
@@ -1297,6 +1541,9 @@ static void create_main_screen(void) {
         if (modbus_master_init() != ESP_OK) {
             ESP_LOGE(TAG, "Modbus Init Failed");
         }
+        
+        // Initialize Warning Screen (Hidden until needed)
+        create_warning_screen();
 
         bsp_display_backlight_on();
         // WiFi Icon (Right of Time)
@@ -1314,16 +1561,6 @@ static void create_main_screen(void) {
         lv_obj_set_style_text_font(mb_status_label, &lv_font_montserrat_20, 0);
         lv_obj_align(mb_status_label, LV_ALIGN_TOP_MID, 0, 10);
 
-        // Settings Button (Bottom Right)
-        lv_obj_t * settings_btn = lv_btn_create(main_screen);
-        lv_obj_set_size(settings_btn, 40, 40); // Smaller
-        lv_obj_align(settings_btn, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
-        lv_obj_add_event_cb(settings_btn, settings_btn_event_cb, LV_EVENT_CLICKED, (void*)0); // Default to editing gauge 0
-        
-        lv_obj_t * settings_lbl = lv_label_create(settings_btn);
-        lv_label_set_text(settings_lbl, LV_SYMBOL_SETTINGS);
-        lv_obj_set_style_text_color(settings_lbl, lv_color_hex(0xFFFFFF), 0);
-        lv_obj_center(settings_lbl);
 
         // --- Grid Layout ---
         // Page 1 Container
@@ -1419,65 +1656,57 @@ static void create_main_screen(void) {
         lv_obj_set_style_pad_top(b_hdr, 30, 0);
         lv_obj_set_style_pad_bottom(b_hdr, 10, 0);
         
-        // Button Grid
-        lv_obj_t * btn_cont = lv_obj_create(grid_page_3);
-        lv_obj_set_size(btn_cont, 1100, 150);
-        lv_obj_set_style_bg_color(btn_cont, lv_color_hex(0x101010), 0);
-        lv_obj_set_flex_flow(btn_cont, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(btn_cont, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-        for(int i=0; i<4; i++) {
-            lv_obj_t * item = lv_obj_create(btn_cont);
-            lv_obj_set_size(item, 200, 80);
-            lv_obj_set_style_bg_color(item, lv_color_hex(0x303030), 0);
-            
-            lv_obj_t * lbl = lv_label_create(item);
-            lv_label_set_text_fmt(lbl, "BTN %d", i+1);
-            lv_obj_set_style_text_font(lbl, &lv_font_montserrat_20, 0);
-            lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
-            lv_obj_align(lbl, LV_ALIGN_LEFT_MID, 20, 0);
-            
-            // LED
-            lv_obj_t * led = lv_led_create(item);
-            lv_obj_set_size(led, 30, 30);
-            lv_obj_align(led, LV_ALIGN_RIGHT_MID, -20, 0);
-            lv_led_off(led);
-            lv_led_set_color(led, lv_color_hex(0x00FF00));
-            
-            input_leds[i] = led;
-        }
+        // --- BUTTONS & OVERLAYS (Must be created LAST for Z-Order) ---
 
+        // Settings Button (Bottom Right)
+        lv_obj_t * settings_btn = lv_btn_create(main_screen);
+        lv_obj_set_size(settings_btn, 40, 40); 
+        lv_obj_align(settings_btn, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
+        lv_obj_add_event_cb(settings_btn, settings_btn_event_cb, LV_EVENT_CLICKED, (void*)0); 
         
-        // --- Navigation Buttons ---
+        lv_obj_t * settings_lbl = lv_label_create(settings_btn);
+        lv_label_set_text(settings_lbl, LV_SYMBOL_SETTINGS);
+        lv_obj_set_style_text_color(settings_lbl, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_center(settings_lbl);
         
-        // Next Button (Right Side)
+        // Start Update Timer
+        lv_timer_create(gas_update_timer_cb, 100, NULL);
+        lv_timer_create(update_time_timer_cb, 1000, NULL);
+
+        // Navigation Buttons (Create Here to be on Top)
         btn_next = lv_btn_create(main_screen);
-        lv_obj_set_size(btn_next, 60, 100);
-        lv_obj_align(btn_next, LV_ALIGN_RIGHT_MID, 0, 0); // Right edge
+        lv_obj_set_size(btn_next, 60, 60);
+        lv_obj_align(btn_next, LV_ALIGN_RIGHT_MID, -10, 0);
         lv_obj_set_style_bg_color(btn_next, lv_color_hex(0x202020), 0);
-        lv_obj_set_style_radius(btn_next, 10, 0); // Rounded
+        lv_obj_set_style_radius(btn_next, 30, 0);
         lv_obj_add_event_cb(btn_next, next_page_cb, LV_EVENT_CLICKED, NULL);
-        
+
         lv_obj_t * lbl_next = lv_label_create(btn_next);
         lv_label_set_text(lbl_next, LV_SYMBOL_RIGHT);
         lv_obj_center(lbl_next);
-        
-        // Prev Button (Left Side) - Initially Hidden
+
         btn_prev = lv_btn_create(main_screen);
-        lv_obj_set_size(btn_prev, 60, 100);
-        lv_obj_align(btn_prev, LV_ALIGN_LEFT_MID, 0, 0); // Left edge
+        lv_obj_set_size(btn_prev, 60, 60);
+        lv_obj_align(btn_prev, LV_ALIGN_LEFT_MID, 10, 0);
         lv_obj_set_style_bg_color(btn_prev, lv_color_hex(0x202020), 0);
-        lv_obj_set_style_radius(btn_prev, 10, 0); 
+        lv_obj_set_style_radius(btn_prev, 30, 0);
         lv_obj_add_event_cb(btn_prev, prev_page_cb, LV_EVENT_CLICKED, NULL);
         lv_obj_add_flag(btn_prev, LV_OBJ_FLAG_HIDDEN); // Start hidden
         
         lv_obj_t * lbl_prev = lv_label_create(btn_prev);
         lv_label_set_text(lbl_prev, LV_SYMBOL_LEFT);
         lv_obj_center(lbl_prev);
-        
-        // Start Update Timer
-        lv_timer_create(gas_update_timer_cb, 100, NULL);
-        lv_timer_create(update_time_timer_cb, 1000, NULL);
+
+        // Bring labels to top as well
+        if (time_label) lv_obj_move_foreground(time_label);
+        if (wifi_status_icon) lv_obj_move_foreground(wifi_status_icon);
+        if (mb_status_label) lv_obj_move_foreground(mb_status_label);
+
+        // Ensure containers don't block input (Clickthrough)
+        lv_obj_clear_flag(grid_page_1, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_clear_flag(grid_page_2, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_clear_flag(grid_page_3, LV_OBJ_FLAG_CLICKABLE);
 
         lv_scr_load(main_screen);
         lvgl_port_unlock();

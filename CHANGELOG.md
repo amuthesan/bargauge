@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.2] - 2025-12-11
+### Added
+- **Warning Screen 2.0**: Replaced old Popup with a dedicated Red "System Warning" Page.
+- **Hardware Acknowledge**: Mechanical "Button 1" (Modbus Index 0) now acknowledges alarms.
+- **Source Display**: Warning screen now explicitly shows which Gauge triggered the alarm and its value.
+
+### Fixed
+- **Navigation Restoration**: Fixed a regression where Pages 2 and 3 were inaccessible.
+- **Unresponsive UI**: Resolved Z-Order issue where transparent layouts were blocking Button interactions.
+- **Layering**: Moved all interactive buttons to the top of the creation stack.
+
 ## [v0.5.1] - 2025-12-10
 ### Added
 - **5-Digit Value Support**: Increased max gauge value digits from 4 to 5.

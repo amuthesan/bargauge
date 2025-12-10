@@ -165,7 +165,14 @@ esp_err_t modbus_set_relay(int index, bool state) {
     
     // Write
     uint8_t type = 0;
-    return mbc_master_set_parameter(cid, param_key, (uint8_t*)&current_byte, &type);
+    esp_err_t err = mbc_master_set_parameter(cid, param_key, (uint8_t*)&current_byte, &type);
+    
+    // Update local cache speculatively so next call sees it!
+    if (err == ESP_OK) {
+        if (state) sys_modbus_data.relays[index] = 1;
+        else sys_modbus_data.relays[index] = 0;
+    }
+    return err;
 }
 
 esp_err_t modbus_master_init(void) {
