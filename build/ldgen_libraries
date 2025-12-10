@@ -88,6 +88,7 @@
 /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/lvgl__lvgl/liblvgl__lvgl.a
 /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/esp_lcd_touch_gsl3680/libesp_lcd_touch_gsl3680.a
 /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/esp_lcd_jd9365/libesp_lcd_jd9365.a
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp-modbus/libespressif__esp-modbus.a
 /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp_hosted/libespressif__esp_hosted.a
 /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp_lcd_st7701/libespressif__esp_lcd_st7701.a
 /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp_lcd_touch_cst816s/libespressif__esp_lcd_touch_cst816s.a

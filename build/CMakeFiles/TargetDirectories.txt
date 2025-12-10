@@ -858,6 +858,13 @@
 /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/esp_lcd_jd9365/CMakeFiles/install.dir
 /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/esp_lcd_jd9365/CMakeFiles/install/local.dir
 /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/esp_lcd_jd9365/CMakeFiles/install/strip.dir
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp-modbus/CMakeFiles/__idf_espressif__esp-modbus.dir
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp-modbus/CMakeFiles/edit_cache.dir
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp-modbus/CMakeFiles/rebuild_cache.dir
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp-modbus/CMakeFiles/list_install_components.dir
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp-modbus/CMakeFiles/install.dir
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp-modbus/CMakeFiles/install/local.dir
+/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp-modbus/CMakeFiles/install/strip.dir
 /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp_hosted/CMakeFiles/__idf_espressif__esp_hosted.dir
 /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp_hosted/CMakeFiles/edit_cache.dir
 /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp_hosted/CMakeFiles/rebuild_cache.dir

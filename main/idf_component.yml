@@ -9,3 +9,4 @@ dependencies:
   espressif/esp_lvgl_port: "^2.0.0"
   espressif/esp_wifi_remote: "*"
   espressif/esp_hosted: "*"
+  espressif/esp-modbus: "^1.0"

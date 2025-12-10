@@ -569,6 +569,11 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
+  include("/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp-modbus/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
   include("/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/espressif__esp_hosted/cmake_install.cmake")
 endif()
 

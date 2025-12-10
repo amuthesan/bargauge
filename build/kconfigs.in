@@ -81,6 +81,7 @@ source "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/1-Demo/idf-example
 source "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/managed_components/chmorgan__esp-audio-player/Kconfig"
 source "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/managed_components/espressif__cmake_utilities/Kconfig"
 source "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/managed_components/espressif__eppp_link/Kconfig"
+source "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/managed_components/espressif__esp-modbus/Kconfig"
 source "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/managed_components/espressif__esp_codec_dev/Kconfig"
 source "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/managed_components/espressif__esp_h264/Kconfig"
 source "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/managed_components/espressif__esp_hosted/Kconfig"

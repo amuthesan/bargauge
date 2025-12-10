@@ -18,6 +18,13 @@ All notable changes to this project will be documented in this file.
 - **NVS Robustness:** Added sanity checks to startup to fix invalid 0-0 ranges from legacy saves.
 - **UI Refinement:** Value alignment centered (-3px correction) and animation flicker fixed on page switch.
 - **Settings:** Configuration dropdown supports all 16 gauges.
+## [v0.4.0] - 2025-12-10
+### Added
+- **Modbus Integration:** Control of external IO modules via RS485 (UART2).
+- **Relay Monitor Screen:** New Page 3 displaying status of 16 Relays and 4 Digital Input Buttons.
+- **Gauge Mapping:** Mapped 16 Analog Input channels to the main dashboard gauges.
+- **Navigation:** Updated touch navigation to cycle through 3 pages.
+
 ## [v0.3.5] - 2025-12-09
 ### Added
 - **NVS Persistence**: Gauge settings (Name, Unit, Limits) are now automatically saved to NVS and loaded on boot.

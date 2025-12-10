@@ -9,6 +9,7 @@
 #include "esp_netif.h"
 #include "nvs_flash.h"
 #include "nvs.h" 
+#include "modbus_master.h"
 #include "esp_sntp.h"
 #include "esp_event.h"
 #include "driver/spi_master.h"
@@ -442,8 +443,13 @@ static lv_obj_t * gauge_labels[16] = {NULL}; // Digital Value
 static lv_obj_t * gauge_title_labels[16] = {NULL};
 static lv_obj_t * gauge_unit_labels[16] = {NULL};
 
+static lv_obj_t * mb_status_label = NULL; // Modbus Status Label
+static lv_obj_t * relay_leds[16] = {NULL};
+static lv_obj_t * input_leds[4] = {NULL};
+
 static lv_obj_t * grid_page_1 = NULL;
 static lv_obj_t * grid_page_2 = NULL;
+static lv_obj_t * grid_page_3 = NULL; // Relay Screen
 static lv_obj_t * btn_next = NULL;
 static lv_obj_t * btn_prev = NULL;
 
@@ -795,7 +801,7 @@ static void create_settings_screen(void) {
     
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
-    lv_label_set_text(lbl_ver, "App Version: v0.3.8");
+    lv_label_set_text(lbl_ver, "App Version: v0.4.0");
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
@@ -979,13 +985,22 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
 
     for (int i = start_idx; i < end_idx; i++) {
         if (gauge_arcs[i] && gauge_labels[i]) {
-            // Simulate Data (Random Walk for demo)
-            // In real app, read sensors here using 'i' map
+            // Read from Modbus Data
+            // Divide by 10/100/etc if needed? modbus_config.json says "Volts" but typically raw ADC.
+            // Assuming 1:1 for now, or raw value.
+            int val = sys_modbus_data.analog_vals[i];
             
-            // Logic: Just wiggle a bit around previous center or random
-            // For now, simple random for demo effect
-            int val = (rand() % (gauge_configs[i].max_val - gauge_configs[i].min_val + 1)) + gauge_configs[i].min_val;
+            // Check connection status
+            // i=0-7 -> connected[0] (ID1)
+            // i=8-15 -> connected[1] (ID2)
+            bool connected = (i < 8) ? sys_modbus_data.connected[0] : sys_modbus_data.connected[1];
             
+            if (!connected) {
+                 lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0x505050), LV_PART_INDICATOR); // Grey if disconnected
+                 // Keep showing last value? Or 0?
+                 // val = 0; // Optional
+            }
+
             // Update Arc
             lv_arc_set_value(gauge_arcs[i], val);
             
@@ -1009,6 +1024,54 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
     if (const_chart) {
          lv_chart_set_next_value(const_chart, const_ser1, (rand() % 100));
     }
+    
+    // Update Modbus Status Label
+    if (mb_status_label && lv_obj_is_valid(mb_status_label)) {
+        bool any_connected = false;
+        bool all_connected = true;
+        for(int k=0; k<4; k++) {
+            if(sys_modbus_data.connected[k]) any_connected = true;
+            else all_connected = false;
+        }
+
+        if (all_connected) {
+            lv_label_set_text(mb_status_label, "MB: OK");
+            lv_obj_set_style_text_color(mb_status_label, lv_color_hex(0x00FF00), 0);
+        } else if (any_connected) {
+             lv_label_set_text(mb_status_label, "MB: PARTIAL");
+             lv_obj_set_style_text_color(mb_status_label, lv_color_hex(0xFFFF00), 0);
+        } else {
+             lv_label_set_text(mb_status_label, "MB: ERR");
+             lv_obj_set_style_text_color(mb_status_label, lv_color_hex(0xFF0000), 0);
+        }
+    }
+
+    // Update Page 3 (Relays & Buttons)
+    if (current_page == 2 && grid_page_3 != NULL) {
+        // Relays
+        for(int i=0; i<16; i++) {
+            if (relay_leds[i] && lv_obj_is_valid(relay_leds[i])) { // Added safety check
+                if(sys_modbus_data.relays[i]) lv_led_on(relay_leds[i]);
+                else lv_led_off(relay_leds[i]);
+                
+                // Dim if disconnected
+                bool connected = (i < 8) ? sys_modbus_data.connected[2] : sys_modbus_data.connected[3];
+                if(!connected) lv_led_set_color(relay_leds[i], lv_color_hex(0x505050));
+                else lv_led_set_color(relay_leds[i], lv_color_hex(0x00FF00));
+            }
+        }
+        // Buttons
+        for(int i=0; i<4; i++) {
+            if (input_leds[i] && lv_obj_is_valid(input_leds[i])) {
+                if(sys_modbus_data.buttons[i]) lv_led_on(input_leds[i]);
+                else lv_led_off(input_leds[i]);
+                
+                // Using ID4 Status
+                 if(!sys_modbus_data.connected[3]) lv_led_set_color(input_leds[i], lv_color_hex(0x505050));
+                 else lv_led_set_color(input_leds[i], lv_color_hex(0x00FF00));
+            }
+        }
+    }
 }
 
 // Navigation Callbacks
@@ -1017,18 +1080,30 @@ static void next_page_cb(lv_event_t * e) {
         current_page = 1;
         lv_obj_add_flag(grid_page_1, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(grid_page_2, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(btn_next, LV_OBJ_FLAG_HIDDEN); // Hide Next on Last Page
         lv_obj_clear_flag(btn_prev, LV_OBJ_FLAG_HIDDEN); // Show Prev
+    } else if (current_page == 1) {
+        if (grid_page_3 != NULL) {
+            current_page = 2; // Page 3
+            lv_obj_add_flag(grid_page_2, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(grid_page_3, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(btn_next, LV_OBJ_FLAG_HIDDEN); // Hide Next on Last Page
+        }
     }
 }
 
 static void prev_page_cb(lv_event_t * e) {
-    if (current_page == 1) {
+    if (current_page == 2) {
+        if (grid_page_2 != NULL) {
+             current_page = 1;
+             lv_obj_add_flag(grid_page_3, LV_OBJ_FLAG_HIDDEN);
+             lv_obj_clear_flag(grid_page_2, LV_OBJ_FLAG_HIDDEN);
+             lv_obj_clear_flag(btn_next, LV_OBJ_FLAG_HIDDEN); // Show Next
+        }
+    } else if (current_page == 1) {
         current_page = 0;
         lv_obj_add_flag(grid_page_2, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(grid_page_1, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(btn_prev, LV_OBJ_FLAG_HIDDEN); // Hide Prev on First Page
-        lv_obj_clear_flag(btn_next, LV_OBJ_FLAG_HIDDEN); // Show Next
     }
 }
 
@@ -1079,12 +1154,27 @@ static void create_main_screen(void) {
         lv_obj_set_style_text_color(time_label, lv_color_hex(0x000000), 0);
         lv_obj_align(time_label, LV_ALIGN_TOP_RIGHT, -50, 10); // Shift left for wifi icon
 
+        // Start Splash Screen (Must be after LVGL Init)
+    // setup_splash_screen(); // Removed per rollback
+
+    // Modbus Init
+    ESP_LOGI(TAG, "Initializing Modbus Master...");
+    if (modbus_master_init() != ESP_OK) {
+        ESP_LOGE(TAG, "Modbus Init Failed");
+    }
+
+    bsp_display_backlight_on();
         // WiFi Icon (Right of Time)
         wifi_status_icon = lv_label_create(main_screen);
         lv_label_set_text(wifi_status_icon, LV_SYMBOL_WIFI); 
         lv_obj_set_style_text_color(wifi_status_icon, lv_color_hex(0x000000), 0);
         lv_obj_align_to(wifi_status_icon, time_label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
-        // Note: Update logic for color needed based on status
+        
+        // Modbus Status Label (Top Center)
+        mb_status_label = lv_label_create(main_screen);
+        lv_label_set_text(mb_status_label, ""); // Init empty
+        lv_obj_set_style_text_font(mb_status_label, &lv_font_montserrat_20, 0);
+        lv_obj_align(mb_status_label, LV_ALIGN_TOP_MID, 0, 10);
 
         // Settings Button (Bottom Right)
         lv_obj_t * settings_btn = lv_btn_create(main_screen);
@@ -1130,6 +1220,93 @@ static void create_main_screen(void) {
         for(int i=8; i<16; i++) {
             create_gas_widget(grid_page_2, i);
         }
+        
+        // Page 3 Container (Relay Monitor) - Initially Hidden
+        grid_page_3 = lv_obj_create(main_screen);
+        lv_obj_set_size(grid_page_3, 1140, 720); 
+        lv_obj_align(grid_page_3, LV_ALIGN_CENTER, 0, 20); 
+        lv_obj_set_style_bg_opa(grid_page_3, 0, 0);
+        lv_obj_set_style_border_width(grid_page_3, 0, 0);
+        lv_obj_set_flex_flow(grid_page_3, LV_FLEX_FLOW_ROW_WRAP);
+        // Align closer to top-left or center? Center is fine.
+        lv_obj_set_flex_align(grid_page_3, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START); 
+        lv_obj_add_flag(grid_page_3, LV_OBJ_FLAG_HIDDEN);
+
+        // -- Construct Page 3 Content --
+        
+        // Relays Header
+        lv_obj_t * r_hdr = lv_label_create(grid_page_3);
+        lv_label_set_text(r_hdr, "Relay Modules (16 Channels) - Read Only");
+        lv_obj_set_style_text_font(r_hdr, &lv_font_montserrat_24, 0);
+        lv_obj_set_style_text_color(r_hdr, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_set_width(r_hdr, 1100); // Full width break
+        lv_obj_set_style_pad_bottom(r_hdr, 10, 0);
+
+        // Relay Grid
+        lv_obj_t * relay_cont = lv_obj_create(grid_page_3);
+        lv_obj_set_size(relay_cont, 1100, 300);
+        lv_obj_set_style_bg_color(relay_cont, lv_color_hex(0x101010), 0);
+        lv_obj_set_flex_flow(relay_cont, LV_FLEX_FLOW_ROW_WRAP);
+        lv_obj_set_flex_align(relay_cont, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
+        
+        for(int i=0; i<16; i++) {
+            lv_obj_t * item = lv_obj_create(relay_cont);
+            lv_obj_set_size(item, 130, 60);
+            lv_obj_set_style_bg_color(item, lv_color_hex(0x303030), 0);
+            lv_obj_set_style_pad_all(item, 5, 0);
+            
+            lv_obj_t * lbl = lv_label_create(item);
+            lv_label_set_text_fmt(lbl, "R%d", i+1);
+            lv_obj_set_style_text_color(lbl, lv_color_hex(0xAAAAAA), 0);
+            lv_obj_align(lbl, LV_ALIGN_LEFT_MID, 5, 0);
+            
+            // LED
+            lv_obj_t * led = lv_led_create(item);
+            lv_obj_set_size(led, 20, 20);
+            lv_obj_align(led, LV_ALIGN_RIGHT_MID, -5, 0);
+            lv_led_off(led);
+            lv_led_set_color(led, lv_color_hex(0x00FF00));
+            
+            relay_leds[i] = led;
+        }
+        
+        // Buttons Header
+        lv_obj_t * b_hdr = lv_label_create(grid_page_3);
+        lv_label_set_text(b_hdr, "Digital Input Buttons (4 Channels)");
+        lv_obj_set_style_text_font(b_hdr, &lv_font_montserrat_24, 0);
+        lv_obj_set_style_text_color(b_hdr, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_set_width(b_hdr, 1100);
+        lv_obj_set_style_pad_top(b_hdr, 30, 0);
+        lv_obj_set_style_pad_bottom(b_hdr, 10, 0);
+        
+        // Button Grid
+        lv_obj_t * btn_cont = lv_obj_create(grid_page_3);
+        lv_obj_set_size(btn_cont, 1100, 150);
+        lv_obj_set_style_bg_color(btn_cont, lv_color_hex(0x101010), 0);
+        lv_obj_set_flex_flow(btn_cont, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(btn_cont, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+        for(int i=0; i<4; i++) {
+            lv_obj_t * item = lv_obj_create(btn_cont);
+            lv_obj_set_size(item, 200, 80);
+            lv_obj_set_style_bg_color(item, lv_color_hex(0x303030), 0);
+            
+            lv_obj_t * lbl = lv_label_create(item);
+            lv_label_set_text_fmt(lbl, "BTN %d", i+1);
+            lv_obj_set_style_text_font(lbl, &lv_font_montserrat_20, 0);
+            lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
+            lv_obj_align(lbl, LV_ALIGN_LEFT_MID, 20, 0);
+            
+            // LED
+            lv_obj_t * led = lv_led_create(item);
+            lv_obj_set_size(led, 30, 30);
+            lv_obj_align(led, LV_ALIGN_RIGHT_MID, -20, 0);
+            lv_led_off(led);
+            lv_led_set_color(led, lv_color_hex(0x00FF00));
+            
+            input_leds[i] = led;
+        }
+
         
         // --- Navigation Buttons ---
         

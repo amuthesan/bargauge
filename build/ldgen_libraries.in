@@ -88,6 +88,7 @@ $<TARGET_FILE:__idf_espressif__esp_lcd_touch>
 $<TARGET_FILE:__idf_lvgl__lvgl>
 $<TARGET_FILE:__idf_esp_lcd_touch_gsl3680>
 $<TARGET_FILE:__idf_esp_lcd_jd9365>
+$<TARGET_FILE:__idf_espressif__esp-modbus>
 $<TARGET_FILE:__idf_espressif__esp_hosted>
 $<TARGET_FILE:__idf_espressif__esp_lcd_st7701>
 $<TARGET_FILE:__idf_espressif__esp_lcd_touch_cst816s>

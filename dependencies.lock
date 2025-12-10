@@ -78,6 +78,16 @@ dependencies:
       registry_url: https://components.espressif.com
       type: service
     version: 1.1.4
+  espressif/esp-modbus:
+    component_hash: 5d5e90b9e55721a8a194b301ad8102d4affb647f47b74cd413ff7d1ce2c1169c
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.3'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.0.18
   espressif/esp32_p4_function_ev_board:
     dependencies:
     - name: espressif/esp_codec_dev
@@ -324,6 +334,7 @@ direct_dependencies:
 - esp_lcd_jd9365
 - esp_lcd_touch_gsl3680
 - espressif/cmake_utilities
+- espressif/esp-modbus
 - espressif/esp32_p4_function_ev_board
 - espressif/esp_codec_dev
 - espressif/esp_h264
@@ -342,6 +353,6 @@ direct_dependencies:
 - espressif/esp_wifi_remote
 - idf
 - lvgl/lvgl
-manifest_hash: 4996e53f66b674920a8e6d63dc53b68c56a4fab494d89ee6ca6be8b9bb22b01a
+manifest_hash: 1fb4061eecb3c6d8aadbdf50131c8f5528630f3c1999240fd4266db425df9a43
 target: esp32p4
 version: 2.0.0
