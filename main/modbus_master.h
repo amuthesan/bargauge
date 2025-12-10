@@ -19,3 +19,6 @@ esp_err_t modbus_master_init(void);
 
 // Task to poll devices (created internally by init, or exposed if needed)
 // We'll let init create the task.
+
+// Set Relay State (0-15)
+esp_err_t modbus_set_relay(int index, bool state);

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.2] - 2025-12-10
+### Added
+- **Safety Settings Tab**: New configuration tab for configuring system-wide safety logic.
+- **Master Relay Logic**: Ability to assign any of the 16 relays as a "Master Warning" output.
+- **Invert Mode**: Toggle switch for NO/NC (Active Low/High) relay logic.
+- **Threshold Monitoring**: Automatic scanning of all 16 gauges; triggers Master Relay if any gauge exceeds its "Yellow" limit.
+- **NVS Persistence**: Safety settings (Master Index, Invert Mode) are saved and loaded on boot.
+
+### Changed
+- **Modbus Control**: Implemented `modbus_set_relay` to allow write operations to relay coils.
+- **Code Restoration**: Reconstructed `lvgl_sw_rotation.c` to eliminate massive code duplication and restore compilation stability.
+
 ## v0.3.8
 - **Bug Fix:** System Info tab now correctly auto-updates WiFi Status and IP Address in real-time.
 - **Rollback:** Removed Boot Splash Screen feature to resolve WDT stability issues.

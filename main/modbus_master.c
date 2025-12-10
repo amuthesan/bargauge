@@ -53,12 +53,12 @@ const mb_parameter_descriptor_t device_parameters[] = {
     { 
         .cid = CID_RELAY_1, .param_key = "Relay 1-8", .param_units = "Bool", 
         .mb_slave_addr = 3, .mb_param_type = MB_PARAM_COIL, .mb_reg_start = 0, .mb_size = 8, 
-        .param_offset = 0, .param_type = PARAM_TYPE_U8, .param_size = 1, .param_opts = { .opt1 = 0, .opt2 = 0, .opt3 = 0 }, .access = PAR_PERMS_READ 
+        .param_offset = 0, .param_type = PARAM_TYPE_U8, .param_size = 1, .param_opts = { .opt1 = 0, .opt2 = 0, .opt3 = 0 }, .access = PAR_PERMS_READ_WRITE 
     },
     { 
         .cid = CID_RELAY_2, .param_key = "Relay 9-16", .param_units = "Bool", 
         .mb_slave_addr = 4, .mb_param_type = MB_PARAM_COIL, .mb_reg_start = 0, .mb_size = 8, 
-        .param_offset = 0, .param_type = PARAM_TYPE_U8, .param_size = 1, .param_opts = { .opt1 = 0, .opt2 = 0, .opt3 = 0 }, .access = PAR_PERMS_READ 
+        .param_offset = 0, .param_type = PARAM_TYPE_U8, .param_size = 1, .param_opts = { .opt1 = 0, .opt2 = 0, .opt3 = 0 }, .access = PAR_PERMS_READ_WRITE 
     },
     { 
         .cid = CID_BUTTONS, .param_key = "Button 1-4", .param_units = "Bool", 
@@ -125,6 +125,31 @@ static void modbus_poll_task(void *arg) {
         
         vTaskDelay(pdMS_TO_TICKS(500)); // Update every 500ms
     }
+}
+
+// Set Relay State
+esp_err_t modbus_set_relay(int index, bool state) {
+    // index: 0-15 (0-7 for Relay 1, 8-15 for Relay 2)
+    if (index < 0 || index > 15) return ESP_ERR_INVALID_ARG;
+    
+    // Determine CID
+    int cid = (index < 8) ? CID_RELAY_1 : CID_RELAY_2;
+    char * param_key = (index < 8) ? "Relay 1-8" : "Relay 9-16";
+    int local_bit = index % 8;
+    
+    // Reconstruct byte from current known state
+    uint8_t current_byte = 0;
+    int start_offset = (index < 8) ? 0 : 8;
+    for(int i=0; i<8; i++) {
+        if(sys_modbus_data.relays[start_offset + i]) current_byte |= (1 << i);
+    }
+    
+    if (state) current_byte |= (1 << local_bit);
+    else current_byte &= ~(1 << local_bit);
+    
+    // Write
+    uint8_t type = 0;
+    return mbc_master_set_parameter(cid, param_key, (uint8_t*)&current_byte, &type);
 }
 
 esp_err_t modbus_master_init(void) {

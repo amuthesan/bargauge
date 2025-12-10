@@ -359,7 +359,7 @@ static const jd9365_lcd_init_cmd_t lcd_cmd[] = {
      {0x29, (uint8_t[]){0x00}, 1, 5},
      {0x11, (uint8_t[]){0x00}, 1, 120},
      {0x35, (uint8_t[]){0x00}, 1, 0},
-
+ 
 };
 
 IRAM_ATTR static bool mipi_dsi_lcd_on_vsync_event(esp_lcd_panel_handle_t panel, esp_lcd_dpi_panel_event_data_t *edata, void *user_ctx)
@@ -432,7 +432,14 @@ typedef struct {
     int threshold;    // Future use
 } GasGaugeConfig;
 
+typedef struct {
+    int master_relay_index; // 0: None, 1-16: Relay Index
+    bool invert_master;     // false: Active=ON, true: Active=OFF
+} SafetyConfig;
+
 static GasGaugeConfig gauge_configs[16];
+static SafetyConfig safety_config; // Global Instance
+
 static int current_edit_index = 0; // Index of gauge currently being edited in settings
 static int current_page = 0; // 0 for Page 1, 1 for Page 2
 
@@ -459,9 +466,10 @@ static void save_gauge_configs(void) {
     esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
     if (err == ESP_OK) {
         nvs_set_blob(my_handle, "gauge_cfg", gauge_configs, sizeof(gauge_configs));
+        nvs_set_blob(my_handle, "safety_cfg", &safety_config, sizeof(safety_config)); // Save Safety Config
         nvs_commit(my_handle);
         nvs_close(my_handle);
-        ESP_LOGI(TAG, "Gauge Configs Saved to NVS");
+        ESP_LOGI(TAG, "Gauge & Safety Configs Saved to NVS");
     } else {
         ESP_LOGE(TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
     }
@@ -469,7 +477,7 @@ static void save_gauge_configs(void) {
 
 // Load Configs from NVS
 static void load_gauge_configs(void) {
-    // 1. Initialize ALL to Defaults first (to handle partial/legacy NVS load)
+    // 1. Initialize ALL to Defaults first
     for(int i=0; i<16; i++) {
         snprintf(gauge_configs[i].name, 32, "GAUGE %d", i+1);
         snprintf(gauge_configs[i].unit, 16, "PPM");
@@ -480,33 +488,34 @@ static void load_gauge_configs(void) {
         gauge_configs[i].red_limit = 100;
         gauge_configs[i].threshold = 80;
     }
+    // Safety Defaults
+    safety_config.master_relay_index = 0; // None
+    safety_config.invert_master = false;
 
     nvs_handle_t my_handle;
     esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
     if (err == ESP_OK) {
         size_t required_size = sizeof(gauge_configs);
-        // We pass the full size buffer. 
-        // If stored blob is smaller (e.g. 8 gauges), it will load those and leave rest as defaults.
         err = nvs_get_blob(my_handle, "gauge_cfg", gauge_configs, &required_size);
+        
+        // Load Safety Config
+        size_t safety_size = sizeof(safety_config);
+        nvs_get_blob(my_handle, "safety_cfg", &safety_config, &safety_size);
+        
         nvs_close(my_handle);
         
         if (err == ESP_OK) {
-            ESP_LOGI(TAG, "Gauge Configs Loaded from NVS");
+            ESP_LOGI(TAG, "Configs Loaded from NVS");
             
-            // SANITY CHECK: Accessing NVS with zeros (from previous bugs) 
-            // might overwrite our defaults with 0-0 ranges.
-            // Verify and fix invalid ranges.
+            // SANITY CHECK
             for(int i=0; i<16; i++) {
                 if (gauge_configs[i].max_val <= gauge_configs[i].min_val) {
-                    ESP_LOGW(TAG, "Gauge %d value invalid (Min %d, Max %d). Resetting to Default.", i, gauge_configs[i].min_val, gauge_configs[i].max_val);
-                     snprintf(gauge_configs[i].name, 32, "GAUGE %d", i+1);
-                    snprintf(gauge_configs[i].unit, 16, "PPM");
+                    ESP_LOGW(TAG, "Gauge %d value invalid. Resetting to Default.", i);
                     gauge_configs[i].min_val = 0;
                     gauge_configs[i].max_val = 100;
                     gauge_configs[i].blue_limit = 30;
                     gauge_configs[i].yellow_limit = 70;
                     gauge_configs[i].red_limit = 100;
-                    gauge_configs[i].threshold = 80;
                 }
             }
             return;
@@ -738,6 +747,16 @@ static void dd_event_cb(lv_event_t * e) {
     }
 }
 
+static void master_relay_dd_cb(lv_event_t * e) {
+    lv_obj_t * dropdown = lv_event_get_target(e);
+    safety_config.master_relay_index = lv_dropdown_get_selected(dropdown);
+}
+
+static void invert_switch_cb(lv_event_t * e) {
+    lv_obj_t * sw = lv_event_get_target(e);
+    safety_config.invert_master = lv_obj_has_state(sw, LV_STATE_CHECKED);
+}
+
 static void create_settings_screen(void) {
     settings_screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(settings_screen, lv_color_hex(0x000000), 0);
@@ -821,6 +840,37 @@ static void create_settings_screen(void) {
     lv_obj_set_style_text_font(sys_ip_label, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(sys_ip_label, lv_color_hex(0xAAAAAA), 0);
 
+
+    // --- Tab 3: Safety Settings ---
+    lv_obj_t * tab3 = lv_tabview_add_tab(tabview, "Safety Settings");
+    lv_obj_set_flex_flow(tab3, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(tab3, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_top(tab3, 20, 0);
+
+    // 1. Master Relay Dropdown
+    lv_obj_t * lbl_mr = lv_label_create(tab3);
+    lv_label_set_text(lbl_mr, "Master Warning Relay:");
+    lv_obj_set_style_text_font(lbl_mr, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(lbl_mr, lv_color_hex(0xFFFFFF), 0);
+    
+    lv_obj_t * dd_mr = lv_dropdown_create(tab3);
+    lv_dropdown_set_options(dd_mr, "None\nRelay 1\nRelay 2\nRelay 3\nRelay 4\nRelay 5\nRelay 6\nRelay 7\nRelay 8\n"
+                                   "Relay 9\nRelay 10\nRelay 11\nRelay 12\nRelay 13\nRelay 14\nRelay 15\nRelay 16");
+    lv_obj_set_width(dd_mr, 200);
+    lv_dropdown_set_selected(dd_mr, safety_config.master_relay_index); // 0=None, 1=RB1...
+    lv_obj_add_event_cb(dd_mr, master_relay_dd_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_set_style_margin_bottom(dd_mr, 20, 0);
+
+    // 2. Invert Switch
+    lv_obj_t * sw_inv = lv_switch_create(tab3);
+    if(safety_config.invert_master) lv_obj_add_state(sw_inv, LV_STATE_CHECKED);
+    lv_obj_add_event_cb(sw_inv, invert_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    
+    lv_obj_t * lbl_inv = lv_label_create(tab3);
+    lv_label_set_text(lbl_inv, "Invert Output (NC Logic)");
+    lv_obj_set_style_text_color(lbl_inv, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_set_style_text_font(lbl_inv, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_margin_top(lbl_inv, 10, 0);
 
     // 2. Back Button (Bottom Fixed)
     lv_obj_t * btn = lv_btn_create(settings_screen);
@@ -985,49 +1035,77 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
         int end_idx = start_idx + 8;
 
         for (int i = start_idx; i < end_idx; i++) {
-        if (gauge_arcs[i] && gauge_labels[i]) {
-            // Read from Modbus Data
-            // Divide by 10/100/etc if needed? modbus_config.json says "Volts" but typically raw ADC.
-            // Assuming 1:1 for now, or raw value.
-            int val = sys_modbus_data.analog_vals[i];
-            
-            // Check connection status
-            // i=0-7 -> connected[0] (ID1)
-            // i=8-15 -> connected[1] (ID2)
-            bool connected = (i < 8) ? sys_modbus_data.connected[0] : sys_modbus_data.connected[1];
-            
-            if (!connected) {
-                 lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0x505050), LV_PART_INDICATOR); // Grey if disconnected
-                 // Keep showing last value? Or 0?
-                 // val = 0; // Optional
-            }
-
-            // Update Arc (Only if changed)
-            if (lv_arc_get_value(gauge_arcs[i]) != val) {
-                lv_arc_set_value(gauge_arcs[i], val);
-                lv_label_set_text_fmt(gauge_labels[i], "%d", val);
-            }
-            
-            // Dynamic Color Logic (Optimized: Only update on state change)
-            static int last_zone[16] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-            int current_zone = 0; // 0: Blue, 1: Yellow, 2: Red
-
-            if (val <= gauge_configs[i].blue_limit) current_zone = 0;
-            else if (val <= gauge_configs[i].yellow_limit) current_zone = 1;
-            else current_zone = 2;
-
-            if (last_zone[i] != current_zone) {
-                if (current_zone == 0) lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0x00FFFF), LV_PART_INDICATOR);
-                else if (current_zone == 1) lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFFFF00), LV_PART_INDICATOR);
-                else lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFF0000), LV_PART_INDICATOR);
+            if (gauge_arcs[i] && gauge_labels[i]) {
+                // Read from Modbus Data
+                int val = sys_modbus_data.analog_vals[i];
                 
-                last_zone[i] = current_zone;
+                // Check connection status
+                bool connected = (i < 8) ? sys_modbus_data.connected[0] : sys_modbus_data.connected[1];
+                
+                if (!connected) {
+                     lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0x505050), LV_PART_INDICATOR); // Grey if disconnected
+                }
+
+                // Update Arc (Only if changed)
+                if (lv_arc_get_value(gauge_arcs[i]) != val) {
+                    lv_arc_set_value(gauge_arcs[i], val);
+                    lv_label_set_text_fmt(gauge_labels[i], "%d", val);
+                }
+                
+                // Dynamic Color Logic (Optimized: Only update on state change)
+                static int last_zone[16] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+                int current_zone = 0; // 0: Blue, 1: Yellow, 2: Red
+
+                if (val <= gauge_configs[i].blue_limit) current_zone = 0;
+                else if (val <= gauge_configs[i].yellow_limit) current_zone = 1;
+                else current_zone = 2;
+
+                if (last_zone[i] != current_zone) {
+                    if (current_zone == 0) lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0x00FFFF), LV_PART_INDICATOR);
+                    else if (current_zone == 1) lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFFFF00), LV_PART_INDICATOR);
+                    else lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFF0000), LV_PART_INDICATOR);
+                    
+                    last_zone[i] = current_zone;
+                }
             }
         }
     }
+
+    // --- Safety / Master Warning Logic ---
+    static int last_safety_state = -1; 
+    bool any_alarm_active = false;
+    
+    // We check all 16 gauges
+    for(int i=0; i<16; i++) {
+        bool connected = (i < 8) ? sys_modbus_data.connected[0] : sys_modbus_data.connected[1];
+        if(!connected) continue; 
+        
+        int val = sys_modbus_data.analog_vals[i];
+        if(val > gauge_configs[i].yellow_limit) { 
+            any_alarm_active = true;
+            break; 
+        }
     }
     
-    // Update Chart if visible (Trend logic - simplified)
+    bool target_relay_state = any_alarm_active; 
+    if (safety_config.invert_master) {
+        target_relay_state = !target_relay_state; 
+    }
+    
+    // Apply to Master Relay if configured (Index 1-16)
+    if (safety_config.master_relay_index > 0) {
+        int r_idx = safety_config.master_relay_index - 1; // 0-15
+        
+        if (last_safety_state != (int)target_relay_state) {
+            esp_err_t err = modbus_set_relay(r_idx, target_relay_state);
+            if (err == ESP_OK) {
+                last_safety_state = (int)target_relay_state;
+                 ESP_LOGI(TAG, "Safety Relay %d Set to %d (Alarm: %d)", r_idx+1, target_relay_state, any_alarm_active);
+            }
+        }
+    }
+    
+    // Update Chart
     if (const_chart) {
          lv_chart_set_next_value(const_chart, const_ser1, (rand() % 100));
     }
@@ -1041,7 +1119,7 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
             else all_connected = false;
         }
 
-        static int last_mb_status = -1; // 0: OK, 1: PARTIAL, 2: ERR
+        static int last_mb_status = -1; 
         int current_mb_status = 2;
 
         if (all_connected) current_mb_status = 0;
@@ -1059,11 +1137,9 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
                  lv_label_set_text(mb_status_label, "MB: ERR");
                  lv_obj_set_style_text_color(mb_status_label, lv_color_hex(0xFF0000), 0);
             }
-            lv_obj_move_foreground(mb_status_label); // Ensure visibility
+            lv_obj_move_foreground(mb_status_label); 
             last_mb_status = current_mb_status;
         }
-    } else {
-        ESP_LOGW(TAG, "mb_status_label invalid or NULL");
     }
 
     // Update Page 3 (Relays & Buttons)
@@ -1083,7 +1159,7 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
             }
             // Buttons
              for(int i=0; i<4; i++) {
-                if (input_leds[i] && lv_obj_is_valid(input_leds[i])) { // Added safety check
+                if (input_leds[i] && lv_obj_is_valid(input_leds[i])) { 
                     if(sys_modbus_data.buttons[i]) lv_led_on(input_leds[i]);
                     else lv_led_off(input_leds[i]);
                     
@@ -1092,13 +1168,10 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
                      else lv_led_set_color(input_leds[i], lv_color_hex(0x00FF00));
                 }
             }
-        } else {
-            ESP_LOGE(TAG, "Page 3 invalid during update!");
         }
     }
 }
 
-// Navigation Callbacks
 static void next_page_cb(lv_event_t * e) {
     if (current_page == 0) {
         current_page = 1;
@@ -1178,16 +1251,13 @@ static void create_main_screen(void) {
         lv_obj_set_style_text_color(time_label, lv_color_hex(0x000000), 0);
         lv_obj_align(time_label, LV_ALIGN_TOP_RIGHT, -50, 10); // Shift left for wifi icon
 
-        // Start Splash Screen (Must be after LVGL Init)
-    // setup_splash_screen(); // Removed per rollback
+        // Modbus Init
+        ESP_LOGI(TAG, "Initializing Modbus Master...");
+        if (modbus_master_init() != ESP_OK) {
+            ESP_LOGE(TAG, "Modbus Init Failed");
+        }
 
-    // Modbus Init
-    ESP_LOGI(TAG, "Initializing Modbus Master...");
-    if (modbus_master_init() != ESP_OK) {
-        ESP_LOGE(TAG, "Modbus Init Failed");
-    }
-
-    bsp_display_backlight_on();
+        bsp_display_backlight_on();
         // WiFi Icon (Right of Time)
         wifi_status_icon = lv_label_create(main_screen);
         lv_label_set_text(wifi_status_icon, LV_SYMBOL_WIFI); 
@@ -1372,9 +1442,6 @@ static void create_main_screen(void) {
         lvgl_port_unlock();
     }
 }
-
-static void create_main_screen(void); // Forward declaration
-
 void app_main(void)
 {
     // Initialize NVS
