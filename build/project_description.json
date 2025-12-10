@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "lvgl_sw_rotation",
-    "project_version":    "v0.5.3-dirty",
+    "project_version":    "v0.5.4-dirty",
     "project_path":       "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge",
     "idf_path":           "/Users/amuthesan/esp/v5.4.1/esp-idf",
     "build_dir":          "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build",
@@ -1625,12 +1625,12 @@
             "dir": "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main",
             "type": "LIBRARY",
             "lib": "__idf_main",
-            "reqs": [ "nvs_flash", "esp_netif", "esp_wifi", "esp_lcd", "espressif__esp_lcd_touch", "lvgl__lvgl", "esp_lcd_touch_gsl3680", "esp_lcd_jd9365", "esp_timer", "esp_driver_i2c", "driver", "esp_mm", "log", "freertos", "esp_system", "esp_driver_ppa", "spi_flash" ],
+            "reqs": [ "nvs_flash", "esp_netif", "esp_wifi", "esp_lcd", "espressif__esp_lcd_touch", "lvgl__lvgl", "esp_lcd_touch_gsl3680", "esp_lcd_jd9365", "esp_timer", "esp_driver_i2c", "driver", "esp_mm", "log", "freertos", "esp_system", "esp_driver_ppa", "spi_flash", "mqtt" ],
             "priv_reqs": [ "espressif__esp-modbus", "espressif__esp_hosted", "esp_lcd_jd9365", "espressif__esp_lcd_st7701", "espressif__esp_lcd_touch_cst816s", "esp_lcd_touch_gsl3680", "espressif__esp_lcd_touch_gt911", "espressif__esp_lvgl_port", "espressif__esp_wifi_remote", "lvgl__lvgl" ],
             "managed_reqs": [],
             "managed_priv_reqs": [ "espressif__esp-modbus", "espressif__esp_hosted", "esp_lcd_jd9365", "espressif__esp_lcd_st7701", "espressif__esp_lcd_touch_cst816s", "esp_lcd_touch_gsl3680", "espressif__esp_lcd_touch_gt911", "espressif__esp_lvgl_port", "espressif__esp_wifi_remote", "lvgl__lvgl" ],
             "file": "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/esp-idf/main/libmain.a",
-            "sources": [ "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main/lvgl_sw_rotation.c", "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main/lvgl_port_v9.c", "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main/rx8025t.c", "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main/modbus_master.c" ],
+            "sources": [ "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main/lvgl_sw_rotation.c", "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main/lvgl_port_v9.c", "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main/rx8025t.c", "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main/modbus_master.c", "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main/mqtt_publisher.c", "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/ca_cert.pem.S" ],
             "include_dirs": [ "." ]
         },
         "mbedtls": {
@@ -3261,7 +3261,7 @@
             "prefix": "idf",
             "dir": "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main",
             "lib": "__idf_main",
-            "reqs": [ "nvs_flash", "esp_netif", "esp_wifi", "esp_lcd", "espressif__esp_lcd_touch", "lvgl__lvgl", "esp_lcd_touch_gsl3680", "esp_lcd_jd9365", "esp_timer", "esp_driver_i2c", "driver", "esp_mm", "log", "freertos", "esp_system", "esp_driver_ppa", "spi_flash" ],
+            "reqs": [ "nvs_flash", "esp_netif", "esp_wifi", "esp_lcd", "espressif__esp_lcd_touch", "lvgl__lvgl", "esp_lcd_touch_gsl3680", "esp_lcd_jd9365", "esp_timer", "esp_driver_i2c", "driver", "esp_mm", "log", "freertos", "esp_system", "esp_driver_ppa", "spi_flash", "mqtt" ],
             "priv_reqs": [ "espressif__esp-modbus", "espressif__esp_hosted", "esp_lcd_jd9365", "espressif__esp_lcd_st7701", "espressif__esp_lcd_touch_cst816s", "esp_lcd_touch_gsl3680", "espressif__esp_lcd_touch_gt911", "espressif__esp_lvgl_port", "espressif__esp_wifi_remote", "lvgl__lvgl" ],
             "managed_reqs": [],
             "managed_priv_reqs": [ "espressif__esp-modbus", "espressif__esp_hosted", "esp_lcd_jd9365", "espressif__esp_lcd_st7701", "espressif__esp_lcd_touch_cst816s", "esp_lcd_touch_gsl3680", "espressif__esp_lcd_touch_gt911", "espressif__esp_lvgl_port", "espressif__esp_wifi_remote", "lvgl__lvgl" ],

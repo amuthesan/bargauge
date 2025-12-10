@@ -5,3 +5,4 @@ set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../1-Demo/idf-examples/commo
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(lvgl_sw_rotation)
+set(PROJECT_VER "0.5.5")

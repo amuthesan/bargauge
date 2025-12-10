@@ -10,6 +10,7 @@
 #include "nvs_flash.h"
 #include "nvs.h" 
 #include "modbus_master.h"
+#include "mqtt_publisher.h"
 #include "esp_sntp.h"
 #include "esp_event.h"
 #include "driver/spi_master.h"
@@ -447,6 +448,23 @@ typedef struct {
 static GasGaugeConfig gauge_configs[16];
 static SafetyConfig safety_config; // Global Instance
 
+static void mqtt_timer_cb(lv_timer_t * t) {
+    float values[16];
+    for(int i=0; i<16; i++) { // Processing all 16 channels
+        int raw_val = sys_modbus_data.analog_vals[i];
+        long in_min = gauge_configs[i].analog_min;
+        long in_max = gauge_configs[i].analog_max;
+        long out_min = gauge_configs[i].min_val;
+        long out_max = gauge_configs[i].max_val;
+        float val = (float)raw_val; 
+        if ((in_max - in_min) != 0) {
+             val = (float)((raw_val - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
+        }
+        values[i] = val;
+    }
+    mqtt_publish_gauge_data(values, 16);
+}
+
 static int current_edit_index = 0; // Index of gauge currently being edited in settings
 static int current_page = 0; // 0 for Page 1, 1 for Page 2
 
@@ -632,6 +650,7 @@ static lv_obj_t * ta_threshold = NULL;
 
 static lv_obj_t * sys_wifi_label = NULL;
 static lv_obj_t * sys_ip_label = NULL;
+static lv_obj_t * sys_mqtt_label = NULL; // MQTT Status
 
 
 // --- Trending Checkbox Callback ---
@@ -1113,7 +1132,8 @@ static void create_settings_screen(void) {
     
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
-    lv_label_set_text(lbl_ver, "App Version: v0.4.1");
+    // Use macro for version
+    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "0.5.5"); 
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
@@ -1121,12 +1141,18 @@ static void create_settings_screen(void) {
     // WiFi Status
     sys_wifi_label = lv_label_create(tab2);
     lv_label_set_text_fmt(sys_wifi_label, "WiFi Status: %s", wifi_connected ? "Connected" : "Disconnected"); 
-    // Manual color coding string? No, simple text for now.
     if(wifi_connected) lv_obj_set_style_text_color(sys_wifi_label, lv_color_hex(0x00FF00), 0);
     else lv_obj_set_style_text_color(sys_wifi_label, lv_color_hex(0xFF0000), 0);
     lv_obj_set_style_text_font(sys_wifi_label, &lv_font_montserrat_24, 0);
     lv_obj_set_style_margin_bottom(sys_wifi_label, 20, 0);
     
+    // MQTT Status
+    sys_mqtt_label = lv_label_create(tab2);
+    lv_label_set_text(sys_mqtt_label, "MQTT Status: Init...");
+    lv_obj_set_style_text_font(sys_mqtt_label, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(sys_mqtt_label, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_set_style_margin_bottom(sys_mqtt_label, 20, 0);
+
     // IP Address
     sys_ip_label = lv_label_create(tab2);
     lv_label_set_text_fmt(sys_ip_label, "IP Address: %s", system_ip_str);
@@ -1741,6 +1767,20 @@ static void update_time_timer_cb(lv_timer_t * timer) {
     if (sys_ip_label && lv_obj_is_valid(sys_ip_label)) {
         lv_label_set_text_fmt(sys_ip_label, "IP Address: %s", system_ip_str);
     }
+    
+    // Update MQTT Status Label
+    // Assuming mqtt_connected is accessible (it's static in publisher, need accessor or external)
+    // For now, I'll assume I can add a getter to mqtt_publisher.h or make it extern.
+    // Let's add `extern bool mqtt_is_connected(void);` to header and use it.
+    if (sys_mqtt_label && lv_obj_is_valid(sys_mqtt_label)) {
+        if (mqtt_is_connected()) {
+            lv_label_set_text(sys_mqtt_label, "MQTT Status: Connected");
+            lv_obj_set_style_text_color(sys_mqtt_label, lv_color_hex(0x00FF00), 0);
+        } else {
+            lv_label_set_text(sys_mqtt_label, "MQTT Status: Disconnected");
+            lv_obj_set_style_text_color(sys_mqtt_label, lv_color_hex(0xFF0000), 0);
+        }
+    }
 }
 
 static void create_main_screen(void) {
@@ -2113,6 +2153,11 @@ void app_main(void)
     ESP_ERROR_CHECK(lvgl_port_init(disp_panel, tp_handle, interface));
 
     bsp_display_backlight_on();
+
+    // Start MQTT (5 second interval)
+    mqtt_app_start();
+    lv_timer_create(mqtt_timer_cb, 5000, NULL);
+
     // Show Main Screen (Gas Widget)
     create_main_screen();
 }
