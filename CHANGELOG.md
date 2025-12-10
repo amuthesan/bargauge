@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.0] - 2025-12-10
+### Fixed
+- **Modbus Connectivity**: Fixed `mdd:err` by swapping UART pins (TX: GPIO 38, RX: GPIO 37).
+- **Serial Interference**: Enforced strict silence on UART0 (Console Logging Disabled) to prevent RS485 bus corruption.
+- **Flow Control**: Removed hardware RTS control (DE/RE not required).
+
 ## [v0.4.3] - 2025-12-10
 ### Changed
 - **Modbus Hardware**: Moved Modbus UART pins to **GPIO 37 (TX) / 38 (RX)** to share the port with the flashing interface.

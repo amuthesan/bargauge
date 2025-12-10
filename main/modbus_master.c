@@ -1,4 +1,5 @@
 #include "modbus_master.h"
+#define LOG_LOCAL_LEVEL ESP_LOG_NONE // Force disable logging for Modbus silence
 #include "esp_log.h"
 #include "mbcontroller.h"
 #include "driver/gpio.h"
@@ -8,10 +9,21 @@
 static const char *TAG = "MB_MASTER";
 
 // Hardware Config
-#define MB_PORT_NUM     (UART_NUM_2) // Use UART2
-#define MB_TX_PIN       (GPIO_NUM_37)
-#define MB_RX_PIN       (GPIO_NUM_38)
-#define MB_RTS_PIN      (UART_PIN_NO_CHANGE) // No hardware flow control used usually for minimal RS485, or mapped to DE
+#define MB_PORT_NUM     (UART_NUM_0) // Use UART0 (Shared with USB)
+#define MB_TX_PIN       (GPIO_NUM_38) // Swapped per user request
+#define MB_RX_PIN       (GPIO_NUM_37) // Swapped per user request
+#define MB_RTS_PIN      (UART_PIN_NO_CHANGE) // Verified: No Hardware Flow Control (No DE/RE)
+
+/* 
+ * Modbus Polling Map Configuration (Verified against dashboard.py reference)
+ * --------------------------------------------------------------------------
+ * Analog 1 (ID 1): Input Registers (FC 0x04) 0x0000 - 0x0007 (8 Channels)
+ * Analog 2 (ID 2): Input Registers (FC 0x04) 0x0000 - 0x0007 (8 Channels)
+ * Relay 1  (ID 3): Coils (FC 0x01)           0x0000 - 0x0007 (8 Relays)
+ * Relay 2  (ID 4): Coils (FC 0x01)           0x0000 - 0x0007 (8 Relays)
+ * Buttons  (ID 4): Discrete Inputs (FC 0x02) 0x0000 - 0x0003 (4 Buttons)
+ * --------------------------------------------------------------------------
+ */
 #define MB_CTS_PIN      (UART_PIN_NO_CHANGE)
 // Note: ESP-Modbus manages RTS/CTS for DE/RE if configured. 
 // Reference says "manual wiring A/B", implies automatic direction control or specific DE pin.

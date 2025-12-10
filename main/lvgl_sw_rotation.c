@@ -13,6 +13,7 @@
 #include "esp_sntp.h"
 #include "esp_event.h"
 #include "driver/spi_master.h"
+#define LOG_LOCAL_LEVEL ESP_LOG_NONE // Force disable logging for Modbus silence
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_heap_caps.h"
