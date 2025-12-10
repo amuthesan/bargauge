@@ -686,9 +686,9 @@ static void create_warning_screen(void) {
     
     // Title
     lv_obj_t * title = lv_label_create(warning_screen);
-    lv_label_set_text(title, "SYSTEM WARNING!!");
+    lv_label_set_text(title, "ALERT"); // Changed from SYSTEM WARNING
     lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0); 
-    lv_obj_set_style_transform_zoom(title, 384, 0); // 1.5x Zoom
+    lv_obj_set_style_transform_zoom(title, 512, 0); // 2x Zoom (Larger)
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(title, 10, 0);
     
@@ -714,7 +714,7 @@ static void create_warning_screen(void) {
     
     // Instruction
     lv_obj_t * instr = lv_label_create(warning_screen);
-    lv_label_set_text(instr, "Press Hardware Button 1\nto Acknowledge");
+    lv_label_set_text(instr, "Press Alarm Acknowledge Button\nto Acknowledge");
     lv_obj_set_style_text_font(instr, &lv_font_montserrat_20, 0); // Smaller
     lv_obj_set_style_text_color(instr, lv_color_hex(0xAAAAAA), 0);
     lv_obj_set_style_text_align(instr, LV_TEXT_ALIGN_CENTER, 0);
@@ -1328,11 +1328,12 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
         
         // Create Warning Screen Logic
         if(!alarm_acknowledged) {
-            // Hardware Acknowledge Check (Button 1, Index 0)
+            // Hardware Acknowledge Check (Button 2, Index 1)
             // Assumes sys_modbus_data is active and polling
-            if (sys_modbus_data.buttons[0]) {
+            // UPDATED: User requested Button 2 for Ack
+            if (sys_modbus_data.buttons[1]) {
                  perform_acknowledge();
-                 ESP_LOGW(TAG, "Hardware Ack Detected!");
+                 ESP_LOGW(TAG, "Hardware Ack Detected (Btn 2)!");
             }
 
             // Check if we are already on warning screen
