@@ -52,6 +52,8 @@ esp_err_t esp_lcd_touch_new_i2c_gsl3680(esp_lcd_panel_io_handle_t io, const esp_
 #include <math.h>
 #include <stdlib.h>
 
+LV_FONT_DECLARE(lv_font_montserrat_48);
+
 static const char *TAG = "BarGauge";
 
 // WiFi credentials
@@ -671,26 +673,87 @@ static void perform_acknowledge(void) {
     }
 }
 
+// --- Warning Icon Custom Draw ---
+static void warning_icon_draw_event_cb(lv_event_t * e) {
+    lv_obj_t * obj = lv_event_get_target(e);
+    lv_layer_t * layer = lv_event_get_layer(e);
+
+    lv_area_t obj_coords;
+    lv_obj_get_coords(obj, &obj_coords);
+    
+    int32_t w = lv_obj_get_width(obj);
+    int32_t h = lv_obj_get_height(obj);
+    int32_t x = obj_coords.x1;
+    int32_t y = obj_coords.y1;
+
+    // 1. Draw Yellow Triangle
+    lv_draw_triangle_dsc_t tri_dsc;
+    lv_draw_triangle_dsc_init(&tri_dsc);
+    tri_dsc.color = lv_color_hex(0xFFD700);
+    tri_dsc.opa = LV_OPA_COVER;
+    
+    // Points: Top, Bottom-Right, Bottom-Left
+    int32_t pad = 10;
+    tri_dsc.p[0].x = x + w / 2;
+    tri_dsc.p[0].y = y + pad;
+    
+    tri_dsc.p[1].x = x + w - pad;
+    tri_dsc.p[1].y = y + h - pad;
+    
+    tri_dsc.p[2].x = x + pad;
+    tri_dsc.p[2].y = y + h - pad;
+
+    lv_draw_triangle(layer, &tri_dsc);
+
+    // 2. Draw Exclamation Mark "!"
+    // We can draw a thick line and a dot, or use text. Text is easier if font is good.
+    // Let's use a simple rounded rect for the stick and a circle for the dot for pure procedural perfection.
+    
+    lv_draw_rect_dsc_t rect_dsc;
+    lv_draw_rect_dsc_init(&rect_dsc);
+    rect_dsc.bg_color = lv_color_hex(0x000000); // Black
+    rect_dsc.bg_opa = LV_OPA_COVER;
+    rect_dsc.radius = LV_RADIUS_CIRCLE;
+    
+    // Stick
+    int32_t stick_w = 20;
+    int32_t stick_h = 80;
+    lv_area_t stick_area;
+    stick_area.x1 = x + (w - stick_w) / 2;
+    stick_area.y1 = y + 60;
+    stick_area.x2 = stick_area.x1 + stick_w;
+    stick_area.y2 = stick_area.y1 + stick_h;
+    lv_draw_rect(layer, &rect_dsc, &stick_area);
+    
+    // Dot
+    int32_t dot_size = 22;
+    lv_area_t dot_area;
+    dot_area.x1 = x + (w - dot_size) / 2;
+    dot_area.y1 = stick_area.y2 + 15;
+    dot_area.x2 = dot_area.x1 + dot_size;
+    dot_area.y2 = dot_area.y1 + dot_size;
+    lv_draw_rect(layer, &rect_dsc, &dot_area);
+}
+
 static void create_warning_screen(void) {
     warning_screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(warning_screen, lv_color_hex(0x800000), 0); // Deep Red
     lv_obj_set_flex_flow(warning_screen, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(warning_screen, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    // Align START (Top) to control vertical spacing
+    lv_obj_set_flex_align(warning_screen, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_top(warning_screen, 40, 0); // Icon High Up
     
-    // Icon
-    lv_obj_t * icon = lv_label_create(warning_screen);
-    lv_label_set_text(icon, LV_SYMBOL_WARNING);
-    lv_obj_set_style_text_font(icon, &lv_font_montserrat_24, 0); 
-    lv_obj_set_style_transform_zoom(icon, 512, 0); // 2x Zoom -> 48px equivalent
-    lv_obj_set_style_text_color(icon, lv_color_hex(0xFFFF00), 0); // Yellow Icon
+    // Icon Container (Fixes alignment/leaning) & Custom Draw
+    lv_obj_t * icon_cont = lv_obj_create(warning_screen);
+    lv_obj_set_size(icon_cont, 250, 200); // Box to hold the icon
+    lv_obj_set_style_bg_opa(icon_cont, 0, 0); // Transparent
+    lv_obj_set_style_border_width(icon_cont, 0, 0);
+    lv_obj_set_style_margin_bottom(icon_cont, 100, 0); // Push content down
     
-    // Title
-    lv_obj_t * title = lv_label_create(warning_screen);
-    lv_label_set_text(title, "ALERT"); // Changed from SYSTEM WARNING
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0); 
-    lv_obj_set_style_transform_zoom(title, 512, 0); // 2x Zoom (Larger)
-    lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_margin_bottom(title, 10, 0);
+    // Attach Custom Draw Callback
+    lv_obj_add_event_cb(icon_cont, warning_icon_draw_event_cb, LV_EVENT_DRAW_MAIN, NULL);
+    // Force a redraw to ensure it appears
+    lv_obj_invalidate(icon_cont);
     
     // Source Label (Dynamic)
     lbl_warning_source = lv_label_create(warning_screen);

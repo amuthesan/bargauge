@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.5.3] - 2025-12-11
+### Changed
+- **Procedural Warning Icon**: Replaced font-based `ALERT` text and potentially blurry glyphs with a sharp, procedurally drawn yellow triangle and black exclamation mark.
+- **Icon Alignment**: Icon is now perfectly centered using a dedicated container and draw callback.
+- **Layout Refinement**: Warning screen content (Icon, Source, Instructions) is better spaced and visually balanced.
+
 ## [v0.5.2] - 2025-12-11
 ### Added
 - **Warning Screen 2.0**: Replaced old Popup with a dedicated Red "System Warning" Page.

@@ -10,9 +10,9 @@
     #include "../../lvgl.h"
 #endif
 
-#ifndef LV_FONT_MONTSERRAT_48
-    #define LV_FONT_MONTSERRAT_48 1
-#endif
+// Force Enable for Antigravity HMI
+#undef LV_FONT_MONTSERRAT_48
+#define LV_FONT_MONTSERRAT_48 1
 
 #if LV_FONT_MONTSERRAT_48
 
