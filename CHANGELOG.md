@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.3] - 2025-12-10
+### Changed
+- **Modbus Hardware**: Moved Modbus UART pins to **GPIO 37 (TX) / 38 (RX)** to share the port with the flashing interface.
+- **Console**: Disabled Bootloader and Application logging on the default UART to ensure a clean line for Modbus RS485 communication.
+
 ## [v0.4.2] - 2025-12-10
 ### Added
 - **Safety Settings Tab**: New configuration tab for configuring system-wide safety logic.

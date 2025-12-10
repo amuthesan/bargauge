@@ -9,8 +9,8 @@ static const char *TAG = "MB_MASTER";
 
 // Hardware Config
 #define MB_PORT_NUM     (UART_NUM_2) // Use UART2
-#define MB_TX_PIN       (GPIO_NUM_45)
-#define MB_RX_PIN       (GPIO_NUM_46)
+#define MB_TX_PIN       (GPIO_NUM_37)
+#define MB_RX_PIN       (GPIO_NUM_38)
 #define MB_RTS_PIN      (UART_PIN_NO_CHANGE) // No hardware flow control used usually for minimal RS485, or mapped to DE
 #define MB_CTS_PIN      (UART_PIN_NO_CHANGE)
 // Note: ESP-Modbus manages RTS/CTS for DE/RE if configured. 
