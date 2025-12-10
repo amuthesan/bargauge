@@ -149,8 +149,9 @@ esp_err_t modbus_master_init(void) {
 
     ESP_LOGI(TAG, "Modbus Master Started on Tx:%d, Rx:%d", MB_TX_PIN, MB_RX_PIN);
 
-    // Start Polling Task
-    xTaskCreate(modbus_poll_task, "modbus_poll", 4096, NULL, 5, NULL);
-
+    // Create polling task
+    xTaskCreatePinnedToCore(modbus_poll_task, "modbus_task", 6144, NULL, 5, NULL, 1);
+    
+    ESP_LOGI(TAG, "Modbus Master Init Complete");
     return ESP_OK;
 }

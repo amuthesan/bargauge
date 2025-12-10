@@ -1,0 +1,500 @@
+Script started on Wed Dec 10 16:26:21 2025
+Command: sh -c . /Users/amuthesan/esp/v5.4.1/esp-idf/export.sh && idf.py -p /dev/cu.usbserial-211430 monitor
+Checking "python3" ...
+Python 3.13.7
+"python3" has been detected
+[91mActivating ESP-IDF [0m[1;91m5.4[0m
+Setting IDF_PATH to [32m'/Users/amuthesan/esp/v5.4.1/esp-idf'[0m.
+[91m*[0m Checking python version [33m...[0m [1;32m3.13[0m[32m.[0m[1;32m7[0m
+[91m*[0m Checking python dependencies [33m...[0m [32mOK[0m
+[91m*[0m Deactivating the current ESP-IDF environment [1m([0mif any[1m)[0m [33m...[0m [32mOK[0m
+[91m*[0m Establishing a new ESP-IDF environment [33m...[0m [32mOK[0m
+[91m*[0m Identifying shell [33m...[0m [32mbash[0m
+[91m*[0m Detecting outdated tools in system [33m...[0m [32mFound tools that are not used by active ESP-IDF version.[0m
+[96mFor removing old versions of riscv32-esp-elf, cmake, xtensa-esp32-elf, xtensa-esp-elf, openocd-esp32, esp32ulp-elf, esp-rom-elfs, xtensa-esp-elf-gdb, xtensa-esp32s3-elf, xtensa-clang, xtensa-esp32s2-elf, riscv32-esp-elf-gdb use command [0m[96m'python [0m
+[96m/Users/amuthesan/esp/v5.4.1/esp-idf/tools/idf_tools.py uninstall'[0m
+[96mTo free up even more space, remove installation packages of those tools.[0m
+[96mUse option python [0m[96m/Users/amuthesan/esp/v5.4.1/esp-idf/tools/[0m[96midf_tools.py[0m[96m uninstall --remove-archives.[0m
+[91m*[0m Shell completion [33m...[0m [32mAutocompletion code generated[0m
+WARNING: Failed to load shell autocompletion for bash version: 3.2.57(1)-release!
+
+Done! You can now compile ESP-IDF projects.
+Go to the project directory and run:
+
+  idf.py build
+Executing action: monitor
+Running idf_monitor in directory '/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge'
+Executing "/Users/amuthesan/.espressif/python_env/idf5.4_py3.13_env/bin/python /Users/amuthesan/esp/v5.4.1/esp-idf/tools/idf_monitor.py -p /dev/cu.usbserial-211430 -b 115200 --toolchain-prefix riscv32-esp-elf- --target esp32p4 --revision 1 --decode-panic backtrace '/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/lvgl_sw_rotation.elf' -m '/Users/amuthesan/.espressif/python_env/idf5.4_py3.13_env/bin/python' '/Users/amuthesan/esp/v5.4.1/esp-idf/tools/idf.py' '-p' '/dev/cu.usbserial-211430'"...
+[0;33m--- esp-idf-monitor 1.8.0 on /dev/cu.usbserial-211430 115200[0m
+[0;33m--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H[0m
+ESP-ROM:esp32p4-eco2-20240710
+Build:Jul 10 2024
+rst:0x1 (POWERON),boot:0x30f (SPI_FAST_FLASH_BOOT)
+SPI mode:DIO, clock div:1
+load:0x4ff33ce0,len:0x177c
+load:0x4ff2abd0,len:0xf20
+load:0x4ff2cbd0,len:0x33fc
+entry 0x4ff2abda
+[0;32mI (25) boot: ESP-IDF v5.4.1-dirty 2nd stage bootloader[0m
+[0;32mI (26) boot: compile time Dec 10 2025 00:17:42[0m
+[0;32mI (26) boot: Multicore bootloader[0m
+[0;32mI (27) boot: chip revision: v1.3[0m
+[0;32mI (29) boot: efuse block revision: v0.3[0m
+[0;32mI (33) qio_mode: Enabling default flash chip QIO[0m
+[0;32mI (37) boot.esp32p4: SPI Speed      : 80MHz[0m
+[0;32mI (41) boot.esp32p4: SPI Mode       : QIO[0m
+[0;32mI (45) boot.esp32p4: SPI Flash Size : 16MB[0m
+[0;32mI (49) boot: Enabling RNG early entropy source...[0m
+[0;32mI (53) boot: Partition Table:[0m
+[0;32mI (56) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (62) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (68) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (75) boot:  2 factory          factory app      00 00 00010000 00800000[0m
+[0;32mI (81) boot:  3 storage          Unknown data     01 82 00810000 00700000[0m
+[0;32mI (89) boot: End of partition table[0m
+[0;32mI (91) esp_image: segment 0: paddr=00010020 vaddr=400d0020 size=5ac54h (371796) map[0m
+[0;32mI (157) esp_image: segment 1: paddr=0006ac7c vaddr=30100000 size=00068h (   104) load[0m
+[0;32mI (159) esp_image: segment 2: paddr=0006acec vaddr=4ff00000 size=0532ch ( 21292) load[0m
+[0;32mI (166) esp_image: segment 3: paddr=00070020 vaddr=40000020 size=c053ch (787772) map[0m
+[0;32mI (289) esp_image: segment 4: paddr=00130564 vaddr=4ff0532c size=1b7e0h (112608) load[0m
+[0;32mI (311) esp_image: segment 5: paddr=0014bd4c vaddr=4ff20b80 size=03d80h ( 15744) load[0m
+[0;32mI (316) esp_image: segment 6: paddr=0014fad4 vaddr=50108080 size=0001ch (    28) load[0m
+[0;32mI (324) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (324) boot: Disabling RNG early entropy source...[0m
+[0;32mI (337) hex_psram: vendor id    : 0x0d (AP)[0m
+[0;32mI (337) hex_psram: Latency      : 0x01 (Fixed)[0m
+[0;32mI (337) hex_psram: DriveStr.    : 0x00 (25 Ohm)[0m
+[0;32mI (338) hex_psram: dev id       : 0x03 (generation 4)[0m
+[0;32mI (342) hex_psram: density      : 0x07 (256 Mbit)[0m
+[0;32mI (347) hex_psram: good-die     : 0x06 (Pass)[0m
+[0;32mI (351) hex_psram: SRF          : 0x02 (Slow Refresh)[0m
+[0;32mI (356) hex_psram: BurstType    : 0x00 ( Wrap)[0m
+[0;32mI (360) hex_psram: BurstLen     : 0x03 (2048 Byte)[0m
+[0;32mI (364) hex_psram: BitMode      : 0x01 (X16 Mode)[0m
+[0;32mI (369) hex_psram: Readlatency  : 0x04 (14 cycles@Fixed)[0m
+[0;32mI (374) hex_psram: DriveStrength: 0x00 (1/1)[0m
+[0;32mI (378) MSPI DQS: tuning success, best phase id is 2[0m
+[0;32mI (561) MSPI DQS: tuning success, best delayline id is 11[0m
+[0;32mI (561) esp_psram: Found 32MB PSRAM device[0m
+[0;32mI (561) esp_psram: Speed: 200MHz[0m
+[0;32mI (562) hex_psram: psram CS IO is dedicated[0m
+[0;32mI (565) cpu_start: Multicore app[0m
+[0;32mI (1518) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1528) cpu_start: Pro cpu start user code[0m
+[0;32mI (1528) cpu_start: cpu freq: 360000000 Hz[0m
+[0;32mI (1528) app_init: Application information:[0m
+[0;32mI (1528) app_init: Project name:     lvgl_sw_rotation[0m
+[0;32mI (1533) app_init: App version:      v0.3.7-2-g567483f-dirty[0m
+[0;32mI (1538) app_init: Compile time:     Dec 10 2025 16:24:46[0m
+[0;32mI (1543) app_init: ELF file SHA256:  faa7bd3f6...[0m
+[0;32mI (1548) app_init: ESP-IDF:          v5.4.1-dirty[0m
+[0;32mI (1552) efuse_init: Min chip rev:     v0.1[0m
+[0;32mI (1556) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (1560) efuse_init: Chip rev:         v1.3[0m
+[0;32mI (1564) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1571) heap_init: At 4FF29B50 len 00011470 (69 KiB): RAM[0m
+[0;32mI (1576) heap_init: At 4FF3AFC0 len 00004BF0 (18 KiB): RAM[0m
+[0;32mI (1581) heap_init: At 4FF40000 len 00060000 (384 KiB): RAM[0m
+[0;32mI (1586) heap_init: At 5010809C len 00007F64 (31 KiB): RTCRAM[0m
+[0;32mI (1592) heap_init: At 30100068 len 00001F98 (7 KiB): TCM[0m
+[0;32mI (1597) esp_psram: Adding pool of 32768K of PSRAM memory to heap allocator[0m
+[0;32mI (1604) spi_flash: detected chip: generic[0m
+[0;32mI (1607) spi_flash: flash io: qio[0m
+[0;32mI (1610) host_init: ESP Hosted : Host chip_ip[18][0m
+[0;32mI (1647) H_API: ESP-Hosted starting. Hosted_Tasks: prio:23, stack: 5120 RPC_task_stack: 5120[0m
+[0;32mI (1647) H_API: ** add_esp_wifi_remote_channels **[0m
+[0;32mI (1649) gpio: GPIO[18]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1657) gpio: GPIO[19]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1665) gpio: GPIO[14]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1674) gpio: GPIO[15]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1682) gpio: GPIO[16]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1691) gpio: GPIO[17]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1700) H_SDIO_DRV: sdio_data_to_rx_buf_task started[0m
+[0;32mI (1700) main_task: Started on CPU0[0m
+[0;32mI (1710) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1720) main_task: Calling app_main()[0m
+[0;32mI (1730) BarGauge: Gauge Configs Loaded from NVS[0m
+[0;32mI (1730) transport: Attempt connection with slave: retry[0][0m
+[0;33mW (1730) H_SDIO_DRV: Reset slave using GPIO[54][0m
+[0;32mI (1730) os_wrapper_esp: GPIO [54] configured[0m
+[0;32mI (1740) gpio: GPIO[54]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (3260) sdio_wrapper: SDIO master: Slot 1, Data-Lines: 4-bit Freq(KHz)[40000 KHz][0m
+[0;32mI (3260) sdio_wrapper: GPIOs: CLK[18] CMD[19] D0[14] D1[15] D2[16] D3[17] Slave_Reset[54][0m
+[0;32mI (3260) sdio_wrapper: Queues: Tx[20] Rx[20] SDIO-Rx-Mode[1][0m
+[0;32mI (3300) gpio: GPIO[15]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (3300) gpio: GPIO[17]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (3300) sdio_wrapper: Function 0 Blocksize: 512[0m
+[0;32mI (3310) sdio_wrapper: Function 1 Blocksize: 512[0m
+[0;32mI (3410) H_SDIO_DRV: Card init success, TRANSPORT_RX_ACTIVE[0m
+[0;32mI (3410) transport: set_transport_state: 1[0m
+[0;32mI (3410) transport: Waiting for esp_hosted slave to be ready[0m
+[0;32mI (3500) H_SDIO_DRV: SDIO Host operating in STREAMING MODE[0m
+[0;32mI (3500) H_SDIO_DRV: Open data path at slave[0m
+[0;32mI (3500) H_SDIO_DRV: Starting SDIO process rx task[0m
+[0;32mI (3500) H_SDIO_DRV: Received ESP_PRIV_IF type message[0m
+[0;32mI (3500) transport: Received INIT event from ESP32 peripheral[0m
+[0;32mI (3510) transport: EVENT: 12[0m
+[0;32mI (3510) transport: Identified slave [esp32c6][0m
+[0;32mI (3510) transport: EVENT: 11[0m
+[0;32mI (3520) transport: capabilities: 0xd[0m
+[0;32mI (3520) transport: Features supported are:[0m
+[0;32mI (3520) transport: 	 * WLAN[0m
+[0;32mI (3530) transport: 	   - HCI over SDIO[0m
+[0;32mI (3530) transport: 	   - BLE only[0m
+[0;32mI (3530) transport: EVENT: 13[0m
+[0;33mW (3540) transport: Version mismatch: Host [2.7.0] > Co-proc [0.0.0] ==> Upgrade co-proc to avoid RPC timeouts[0m
+[0;32mI (3550) transport: ESP board type is : 13 [0m
+
+[0;32mI (3550) transport: Base transport is set-up, TRANSPORT_TX_ACTIVE[0m
+[0;32mI (3560) H_API: Transport active[0m
+[0;32mI (3560) transport: Slave chip Id[12][0m
+[0;32mI (3560) transport: raw_tp_dir[-], flow_ctrl: low[60] high[80][0m
+[0;32mI (3570) transport: transport_delayed_init[0m
+[0;32mI (3570) esp_cli: Remove any existing deep_sleep cmd in cli[0m
+[0;32mI (3580) esp_cli: Registering command: crash[0m
+[0;32mI (3580) esp_cli: Registering command: reboot[0m
+[0;32mI (3590) esp_cli: Registering command: mem-dump[0m
+[0;32mI (3590) esp_cli: Registering command: task-dump[0m
+[0;32mI (3590) esp_cli: Registering command: cpu-dump[0m
+[0;32mI (3600) esp_cli: Registering command: heap-trace[0m
+[0;32mI (3600) esp_cli: Registering command: sock-dump[0m
+[0;32mI (3610) esp_cli: Registering command: host-power-save[0m
+[0;32mI (3610) hci_stub_drv: Host BT Support: Disabled[0m
+[0;32mI (3620) H_SDIO_DRV: Received INIT event[0m
+[0;32mI (3620) H_SDIO_DRV: Event type: 0x22[0m
+[0;32mI (3620) H_SDIO_DRV: Write thread started[0m
+[0;32mI (3700) RPC_WRAP: --- ESP Event: Slave ESP Init ---[0m
+[0;32mI (3960) BarGauge: WiFi initialization complete[0m
+[0;32mI (3960) BarGauge: SNTP initialized[0m
+[0;33mW (3960) i2c.master: Please check pull-up resistances whether be connected properly. Otherwise unexpected behavior would happen. For more detailed information, please read docs[0m
+[0;32mI (3960) RPC_WRAP: ESP Event: wifi station started[0m
+[0;32mI (3970) RX8025T: RX8025T RTC initialized[0m
+[0;32mI (3980) RX8025T: RTC time read: 2025-12-10 16:26:28[0m
+[0;32mI (3980) BarGauge: System time set from RTC: Wed Dec 10 16:26:28 2025[0m
+
+[0;32mI (3990) BarGauge: MIPI DSI PHY Powered on[0m
+[0;32mI (3990) BarGauge: Install MIPI DSI LCD control panel[0m
+[0;32mI (4000) BarGauge: Install LCD driver of st7701[0m
+[0;32mI (4000) jd9365: version: 1.0.2[0m
+[0;32mI (4000) gpio: GPIO[27]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (4210) jd9365: LCD ID: 93 65 04[0m
+[0;32mI (4330) BarGauge: Starting app_main...[0m
+[0;32mI (4330) gpio: GPIO[22]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;33mW (4330) gsl3680: Unable to initialize the I2C address[0m
+[0;32mI (4390) gsl3680: init gls3680[0m
+[0;32mI (4390) gsl3680: gsl3680 connect[0m
+[0;32mI (4390) gsl3680: gsl3680 read reg 0xf0 before is 0 0 0 0[0m
+[0;32mI (4410) gsl3680: gsl3680 writing 0xf0 0x12[0m
+[0;32mI (4430) gsl3680: gsl3680 read reg 0xf0 after is 12 34 56 0[0m
+[0;32mI (4430) gsl3680: start init[0m
+[0;32mI (4430) gsl3680: clear reg[0m
+[0;32mI (4550) gsl3680: start load fw[0m
+[0;32mI (4980) H_API: esp_wifi_remote_connect[0m
+[0;33mW (5010) rpc_rsp: Hosted RPC_Resp [0x21a], uid [7], resp code [12295][0m
+[0;32mI (5380) gsl3680: load fw success[0m
+[0;32mI (5380) gsl3680: enter[0m
+[0;32mI (5390) gsl_point_id: gsl_DataInit[0m
+[0;32mI (5450) gsl3680: enter[0m
+[0;32mI (5460) gsl_point_id: gsl_DataInit[0m
+[0;32mI (5460) gsl3680: enter read_ram_fw[0m
+[0;32mI (5490) gsl3680: gsl3680 startup_chip failed read 0xb0 = 5a,5a,5a,5a [0m
+[0;32mI (5490) gpio: GPIO[21]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:2 [0m
+[0;32mI (5490) BarGauge: interface is 1[0m
+[0;32mI (5490) lv_port: Create LVGL task[0m
+[0;32mI (5540) BarGauge: Setting LCD backlight: 100%[0m
+[0;32mI (5600) BarGauge: Initializing Modbus Master...[0m
+[0;32mI (5600) MB_MASTER: Modbus Master Init...[0m
+[0;32mI (5600) uart: queue free spaces: 20[0m
+[0;32mI (5600) MB_MASTER: Modbus Master Started on Tx:45, Rx:46[0m
+[0;32mI (5600) MB_MASTER: Modbus Master Init Complete[0m
+[0;32mI (5610) BarGauge: Setting LCD backlight: 100%[0m
+[0;32mI (5610) BarGauge: mb_status_label created: 0x4ff509a4[0m
+[0;32mI (5690) BarGauge: grid_page_3 created: 0x4ff580c0[0m
+[0;32mI (5700) main_task: Returned from app_main()[0m
+[1;31mE (8600) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[0;32mI (8700) RPC_WRAP: ESP Event: Station mode: Disconnected[0m
+[0;32mI (8700) BarGauge: WiFi disconnected, reconnecting...[0m
+[0;32mI (8700) H_API: esp_wifi_remote_connect[0m
+
+assert failed: heap_caps_free heap_caps_base.c:74 (heap != NULL && "free() target pointer is outside heap areas")
+[0;33m--- Stack dump detected[0m
+Core  0 register dump:
+MEPC    : 0x4ff00e50  RA      : 0x4ff16a3e  SP      : 0x4ff3d6b0  GP      : 0x4ff21380  
+[0m--- 0x4ff00e50: [0;33mpanic_abort[0m[0m at [0;32m/Users/amuthesan/esp/v5.4.1/esp-idf/components/esp_system/panic.c[0m[0m:[1;31m468[0m
+[0m--- 0x4ff16a3e: [0;33m__ubsan_include[0m[0m at [0;32m/Users/amuthesan/esp/v5.4.1/esp-idf/components/esp_system/ubsan.c[0m[0m:[1;31m311[0m
+TP      : 0x4ff3d920  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130  
+S0/FP   : 0x00000056  S1      : 0x00000001  A0      : 0x4ff3d6ec  A1      : 0x4ff24371  
+A2      : 0x00000001  A3      : 0x00000029  A4      : 0x00000001  A5      : 0x4ff29000  
+A6      : 0x0000000c  A7      : 0x76757473  S2      : 0x00000009  S3      : 0x4ff3d831  
+S4      : 0x4ff24370  S5      : 0x00000000  S6      : 0x00000000  S7      : 0x00000000  
+S8      : 0x00000000  S9      : 0x00000000  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x6e6d6c6b  T4      : 0x6a696867  T5      : 0x66656463  T6      : 0x62613938  
+MSTATUS : 0x00011880  MTVEC   : 0x4ff00003  MCAUSE  : 0x00000002  MTVAL   : 0x00000000  
+[0m--- 0x4ff00003: [0;33m_vector_table[0m[0m at [0;32m??[0m[0m:[1;31m?[0m
+MHARTID : 0x00000000  
+
+[0;33m
+--- Backtrace:
+
+[0m
+panic_abort (details=details@entry=0x4ff3d6ec "assert failed: heap_caps_free heap_caps_base.c:74 (heap != NULL && \"free() target pointer is outside heap areas\")") at /Users/amuthesan/esp/v5.4.1/esp-idf/components/esp_system/panic.c:468
+468	    asm("unimp");   // should be an invalid operation on RISC-V targets
+#0  panic_abort (details=details@entry=0x4ff3d6ec "assert failed: heap_caps_free heap_caps_base.c:74 (heap != NULL && \"free() target pointer is outside heap areas\")") at /Users/amuthesan/esp/v5.4.1/esp-idf/components/esp_system/panic.c:468
+#1  0x4ff16a3e in esp_system_abort (details=details@entry=0x4ff3d6ec "assert failed: heap_caps_free heap_caps_base.c:74 (heap != NULL && \"free() target pointer is outside heap areas\")") at /Users/amuthesan/esp/v5.4.1/esp-idf/components/esp_system/port/esp_system_chip.c:87
+#2  0x4ff1f97c in __assert_func (file=file@entry=0x400d16c6 "", line=line@entry=74, func=<optimized out>, func@entry=0x400f255c <__func__.2> "", expr=expr@entry=0x400d1670 "") at /Users/amuthesan/esp/v5.4.1/esp-idf/components/newlib/assert.c:80
+#3  0x4ff01206 in heap_caps_free (ptr=<optimized out>) at /Users/amuthesan/esp/v5.4.1/esp-idf/components/heap/heap_caps_base.c:74
+#4  0x4ff1f9a2 in free (ptr=<optimized out>) at /Users/amuthesan/esp/v5.4.1/esp-idf/components/newlib/heap.c:39
+#5  0x4004ecde in lv_free_core (p=<optimized out>) at /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/managed_components/lvgl__lvgl/src/stdlib/clib/lv_mem_core_clib.c:74
+#6  0x4004ee3e in lv_free (data=<optimized out>) at /Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/managed_components/lvgl__lvgl/src/stdlib/lv_mem.c:136
+#7  0x00000000 in ?? ()
+Backtrace stopped: frame did not save the PC
+
+4ff3d830: 0x00000000 0x00000018 0x00000010 0x4ff3d858 0x00000000 0x4ff3e0d8 0x4ff3e08c 0x40025b92
+[0m--- 0x40025b92: [0;33mgas_update_timer_cb[0m[0m at [0;32m/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main/lvgl_sw_rotation.c[0m[0m:[1;31m1011[0m
+4ff3d850: 0x00000000 0x4ff3e0d8 0x00000000 0x00000000 0x00000c00 0x4ff25ed4 0x00000050 0x4fc10a5c
+4ff3d870: 0x00000000 0x4f505050 0x4ff3ac88 0x4ff1757c 0x00000000 0x00000000 0x00000000 0x00000000
+[0m--- 0x4ff1757c: [0;33mxQueueSemaphoreTake[0m[0m at [0;32m/Users/amuthesan/esp/v5.4.1/esp-idf/components/freertos/FreeRTOS-Kernel/queue.c[0m[0m:[1;31m1778[0m
+4ff3d890: 0x00000000 0xffffffff 0x4ff3e08c 0x4005263c 0x00000000 0x00000000 0x4ff5bac0 0x00000000
+[0m--- 0x4005263c: [0;33mlv_tick_elaps[0m[0m at [0;32m/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/managed_components/lvgl__lvgl/src/tick/lv_tick.c[0m[0m:[1;31m69[0m
+4ff3d8b0: 0x00001584 0xffffffff 0x4ff5bac0 0x4004e7b8 0x00000000 0x4ff3f994 0x4ff5bac0 0x4004e872
+[0m--- 0x4004e7b8: [0;33mlv_timer_exec[0m[0m at [0;32m/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/managed_components/lvgl__lvgl/src/misc/lv_timer.c[0m[0m:[1;31m339[0m
+[0m--- 0x4004e872: [0;33mlv_timer_handler[0m[0m at [0;32m/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/managed_components/lvgl__lvgl/src/misc/lv_timer.c[0m[0m:[1;31m107[0m
+4ff3d8d0: 0x00000000 0x00000000 0x00000005 0x40028b94 0x00000000 0x00000000 0x00000000 0x4ff17816
+[0m--- 0x40028b94: [0;33mlvgl_port_task[0m[0m at [0;32m/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main/lvgl_port_v9.c[0m[0m:[1;31m613[0m
+[0m--- 0x4ff17816: [0;33mvPortTaskWrapper[0m[0m at [0;32m/Users/amuthesan/esp/v5.4.1/esp-idf/components/freertos/FreeRTOS-Kernel/portable/riscv/port.c[0m[0m:[1;31m258[0m
+4ff3d8f0: 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000 0x00000000
+4ff3d910: 0x00000000 0xa5a5a5a5 0xa5a5a5a5 0xa5a5a5a5 0x00000001 0x4ff3c144 0x4ff3c144 0x00000000
+4ff3d930: 0x00000000 0x00000000 0xa5a5a5a5 0xa5a5a5a5 0xa5a5a5a5 0x00000740 0x4ff3afd4 0x4ff3afd4
+4ff3d950: 0x148359b2 0x92815d07 0x97cb1ff0 0x11db5fea 0x5af76825 0x36791ed2 0xcea9c4b8 0xd004962a
+4ff3d970: 0xf28b1ed3 0x14c9635e 0x2cc5603f 0x467c19a4 0x7abe3fd4 0x09f60880 0xb8fb6654 0xbd6a5b78
+4ff3d990: 0xb21a1210 0x43c325ad 0x1996eae3 0x24e84b84 0x3137ae2d 0x512319af 0x8afe8755 0x68f9f26b
+4ff3d9b0: 0x142b5b9d 0x8fb5f598 0x4ad57201 0xdb408b7d 0xd8995d89 0x77ae15f7 0xc7a1f2d2 0x8ec4f650
+4ff3d9d0: 0x402fca03 0x9a906403 0xda933611 0x4b000fba 0x152c1f41 0x2622808e 0x13692a84 0x168be9a5
+4ff3d9f0: 0x92dd187c 0x9875f651 0xfc0cfd72 0xf1d40ff0 0x1e5694a2 0xbb787e80 0xd633a3b7 0x2ab91fa8
+4ff3da10: 0x42d65210 0x66b923cb 0x94800e67 0xc9384059 0x869b050f 0x872d10f4 0xc5b6848a 0x1bc12d93
+4ff3da30: 0x9e370a3d 0xf3600285 0x0014bc08 0x241bdb25 0xe41ec770 0xa68bdaf7 0x5d2e8f75 0x352e36a3
+4ff3da50: 0x83d8beaa 0xd8b1d0ab 0xc8d79a26 0x24e08907 0x63c5c51d 0x8d1a1e2f 0x899646cf 0x20c05cf1
+4ff3da70: 0x657e16e8 0x6b41aeb3 0x7abe6334 0x7422e9cb 0x141e5f3c 0xe2602031 0x9577826d 0xdcb6cb97
+4ff3da90: 0xacbece15 0xed9805c2 0x85d35bde 0x95f22f9a 0x6950ff23 0x63153516 0x4ab844e2 0x63ccabab
+
+
+
+ELF file SHA256: faa7bd3f6
+
+Rebooting...
+ESP-ROM:esp32p4-eco2-20240710
+Build:Jul 10 2024
+rst:0xc (SW_CPU_RESET),boot:0x30f (SPI_FAST_FLASH_BOOT)
+Core0 Saved PC:0x4ff114c8
+[0m--- 0x4ff114c8: [0;33mcpu_utility_ll_reset_cpu[0m[0m at [0;32m/Users/amuthesan/esp/v5.4.1/esp-idf/components/hal/esp32p4/include/hal/cpu_utility_ll.h[0m[0m:[1;31m23[0m
+[0m--- (inlined by) [0;33mesp_cpu_reset[0m[0m at [0;32m/Users/amuthesan/esp/v5.4.1/esp-idf/components/esp_hw_support/cpu.c[0m[0m:[1;31m49[0m
+Core1 Saved PC:0x4ff11624
+[0m--- 0x4ff11624: [0;33mesp_cpu_wait_for_intr[0m[0m at [0;32m/Users/amuthesan/esp/v5.4.1/esp-idf/components/esp_hw_support/cpu.c[0m[0m:[1;31m57[0m
+SPI mode:DIO, clock div:1
+load:0x4ff33ce0,len:0x177c
+load:0x4ff2abd0,len:0xf20
+load:0x4ff2cbd0,len:0x33fc
+entry 0x4ff2abda
+[0;32mI (33) boot: ESP-IDF v5.4.1-dirty 2nd stage bootloader[0m
+[0;32mI (33) boot: compile time Dec 10 2025 00:17:42[0m
+[0;32mI (34) boot: Multicore bootloader[0m
+[0;32mI (35) boot: chip revision: v1.3[0m
+[0;32mI (37) boot: efuse block revision: v0.3[0m
+[0;32mI (40) qio_mode: Enabling default flash chip QIO[0m
+[0;32mI (45) boot.esp32p4: SPI Speed      : 80MHz[0m
+[0;32mI (48) boot.esp32p4: SPI Mode       : QIO[0m
+[0;32mI (52) boot.esp32p4: SPI Flash Size : 16MB[0m
+[0;32mI (56) boot: Enabling RNG early entropy source...[0m
+[0;32mI (61) boot: Partition Table:[0m
+[0;32mI (63) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (69) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (76) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (82) boot:  2 factory          factory app      00 00 00010000 00800000[0m
+[0;32mI (89) boot:  3 storage          Unknown data     01 82 00810000 00700000[0m
+[0;32mI (96) boot: End of partition table[0m
+[0;32mI (99) esp_image: segment 0: paddr=00010020 vaddr=400d0020 size=5ac54h (371796) map[0m
+[0;32mI (153) esp_image: segment 1: paddr=0006ac7c vaddr=30100000 size=00068h (   104) load[0m
+[0;32mI (154) esp_image: segment 2: paddr=0006acec vaddr=4ff00000 size=0532ch ( 21292) load[0m
+[0;32mI (161) esp_image: segment 3: paddr=00070020 vaddr=40000020 size=c053ch (787772) map[0m
+[0;32mI (262) esp_image: segment 4: paddr=00130564 vaddr=4ff0532c size=1b7e0h (112608) load[0m
+[0;32mI (280) esp_image: segment 5: paddr=0014bd4c vaddr=4ff20b80 size=03d80h ( 15744) load[0m
+[0;32mI (284) esp_image: segment 6: paddr=0014fad4 vaddr=50108080 size=0001ch (    28) load[0m
+[0;32mI (291) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (291) boot: Disabling RNG early entropy source...[0m
+[0;32mI (305) hex_psram: vendor id    : 0x0d (AP)[0m
+[0;32mI (306) hex_psram: Latency      : 0x01 (Fixed)[0m
+[0;32mI (306) hex_psram: DriveStr.    : 0x00 (25 Ohm)[0m
+[0;32mI (307) hex_psram: dev id       : 0x03 (generation 4)[0m
+[0;32mI (311) hex_psram: density      : 0x07 (256 Mbit)[0m
+[0;32mI (316) hex_psram: good-die     : 0x06 (Pass)[0m
+[0;32mI (320) hex_psram: SRF          : 0x02 (Slow Refresh)[0m
+[0;32mI (325) hex_psram: BurstType    : 0x00 ( Wrap)[0m
+[0;32mI (329) hex_psram: BurstLen     : 0x03 (2048 Byte)[0m
+[0;32mI (333) hex_psram: BitMode      : 0x01 (X16 Mode)[0m
+[0;32mI (338) hex_psram: Readlatency  : 0x04 (14 cycles@Fixed)[0m
+[0;32mI (343) hex_psram: DriveStrength: 0x00 (1/1)[0m
+[0;32mI (347) MSPI DQS: tuning success, best phase id is 2[0m
+[0;32mI (529) MSPI DQS: tuning success, best delayline id is 11[0m
+[0;32mI (530) esp_psram: Found 32MB PSRAM device[0m
+[0;32mI (530) esp_psram: Speed: 200MHz[0m
+[0;32mI (531) hex_psram: psram CS IO is dedicated[0m
+[0;32mI (534) cpu_start: Multicore app[0m
+[0;32mI (1487) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1496) cpu_start: Pro cpu start user code[0m
+[0;32mI (1497) cpu_start: cpu freq: 360000000 Hz[0m
+[0;32mI (1497) app_init: Application information:[0m
+[0;32mI (1497) app_init: Project name:     lvgl_sw_rotation[0m
+[0;32mI (1502) app_init: App version:      v0.3.7-2-g567483f-dirty[0m
+[0;32mI (1507) app_init: Compile time:     Dec 10 2025 16:24:46[0m
+[0;32mI (1512) app_init: ELF file SHA256:  faa7bd3f6...[0m
+[0;32mI (1517) app_init: ESP-IDF:          v5.4.1-dirty[0m
+[0;32mI (1521) efuse_init: Min chip rev:     v0.1[0m
+[0;32mI (1525) efuse_init: Max chip rev:     v1.99 [0m
+[0;32mI (1529) efuse_init: Chip rev:         v1.3[0m
+[0;32mI (1533) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1539) heap_init: At 4FF29B50 len 00011470 (69 KiB): RAM[0m
+[0;32mI (1544) heap_init: At 4FF3AFC0 len 00004BF0 (18 KiB): RAM[0m
+[0;32mI (1550) heap_init: At 4FF40000 len 00060000 (384 KiB): RAM[0m
+[0;32mI (1555) heap_init: At 5010809C len 00007F64 (31 KiB): RTCRAM[0m
+[0;32mI (1560) heap_init: At 30100068 len 00001F98 (7 KiB): TCM[0m
+[0;32mI (1566) esp_psram: Adding pool of 32768K of PSRAM memory to heap allocator[0m
+[0;32mI (1573) spi_flash: detected chip: generic[0m
+[0;32mI (1576) spi_flash: flash io: qio[0m
+[0;32mI (1579) host_init: ESP Hosted : Host chip_ip[18][0m
+[0;32mI (1616) H_API: ESP-Hosted starting. Hosted_Tasks: prio:23, stack: 5120 RPC_task_stack: 5120[0m
+[0;32mI (1616) H_API: ** add_esp_wifi_remote_channels **[0m
+[0;32mI (1618) gpio: GPIO[18]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1626) gpio: GPIO[19]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1634) gpio: GPIO[14]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1643) gpio: GPIO[15]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1651) gpio: GPIO[16]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1659) gpio: GPIO[17]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1669) H_SDIO_DRV: sdio_data_to_rx_buf_task started[0m
+[0;32mI (1669) main_task: Started on CPU0[0m
+[0;32mI (1679) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations[0m
+[0;32mI (1689) main_task: Calling app_main()[0m
+[0;32mI (1699) BarGauge: Gauge Configs Loaded from NVS[0m
+[0;32mI (1699) transport: Attempt connection with slave: retry[0][0m
+[0;33mW (1699) H_SDIO_DRV: Reset slave using GPIO[54][0m
+[0;32mI (1699) os_wrapper_esp: GPIO [54] configured[0m
+[0;32mI (1709) gpio: GPIO[54]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (3229) sdio_wrapper: SDIO master: Slot 1, Data-Lines: 4-bit Freq(KHz)[40000 KHz][0m
+[0;32mI (3229) sdio_wrapper: GPIOs: CLK[18] CMD[19] D0[14] D1[15] D2[16] D3[17] Slave_Reset[54][0m
+[0;32mI (3229) sdio_wrapper: Queues: Tx[20] Rx[20] SDIO-Rx-Mode[1][0m
+[0;32mI (3269) gpio: GPIO[15]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (3269) gpio: GPIO[17]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (3269) sdio_wrapper: Function 0 Blocksize: 512[0m
+[0;32mI (3279) sdio_wrapper: Function 1 Blocksize: 512[0m
+[0;32mI (3379) H_SDIO_DRV: Card init success, TRANSPORT_RX_ACTIVE[0m
+[0;32mI (3379) transport: set_transport_state: 1[0m
+[0;32mI (3379) transport: Waiting for esp_hosted slave to be ready[0m
+[0;32mI (3469) H_SDIO_DRV: SDIO Host operating in STREAMING MODE[0m
+[0;32mI (3469) H_SDIO_DRV: Open data path at slave[0m
+[0;32mI (3469) H_SDIO_DRV: Starting SDIO process rx task[0m
+[0;32mI (3469) H_SDIO_DRV: Received ESP_PRIV_IF type message[0m
+[0;32mI (3469) transport: Received INIT event from ESP32 peripheral[0m
+[0;32mI (3479) transport: EVENT: 12[0m
+[0;32mI (3479) transport: Identified slave [esp32c6][0m
+[0;32mI (3479) transport: EVENT: 11[0m
+[0;32mI (3489) transport: capabilities: 0xd[0m
+[0;32mI (3489) transport: Features supported are:[0m
+[0;32mI (3489) transport: 	 * WLAN[0m
+[0;32mI (3499) transport: 	   - HCI over SDIO[0m
+[0;32mI (3499) transport: 	   - BLE only[0m
+[0;32mI (3499) transport: EVENT: 13[0m
+[0;33mW (3509) transport: Version mismatch: Host [2.7.0] > Co-proc [0.0.0] ==> Upgrade co-proc to avoid RPC timeouts[0m
+[0;32mI (3519) transport: ESP board type is : 13 [0m
+
+[0;32mI (3519) transport: Base transport is set-up, TRANSPORT_TX_ACTIVE[0m
+[0;32mI (3529) H_API: Transport active[0m
+[0;32mI (3529) transport: Slave chip Id[12][0m
+[0;32mI (3529) transport: raw_tp_dir[-], flow_ctrl: low[60] high[80][0m
+[0;32mI (3539) transport: transport_delayed_init[0m
+[0;32mI (3539) esp_cli: Remove any existing deep_sleep cmd in cli[0m
+[0;32mI (3549) esp_cli: Registering command: crash[0m
+[0;32mI (3549) esp_cli: Registering command: reboot[0m
+[0;32mI (3559) esp_cli: Registering command: mem-dump[0m
+[0;32mI (3559) esp_cli: Registering command: task-dump[0m
+[0;32mI (3559) esp_cli: Registering command: cpu-dump[0m
+[0;32mI (3569) esp_cli: Registering command: heap-trace[0m
+[0;32mI (3569) esp_cli: Registering command: sock-dump[0m
+[0;32mI (3579) esp_cli: Registering command: host-power-save[0m
+[0;32mI (3579) hci_stub_drv: Host BT Support: Disabled[0m
+[0;32mI (3589) H_SDIO_DRV: Received INIT event[0m
+[0;32mI (3589) H_SDIO_DRV: Event type: 0x22[0m
+[0;32mI (3589) H_SDIO_DRV: Write thread started[0m
+[0;32mI (3669) RPC_WRAP: --- ESP Event: Slave ESP Init ---[0m
+[0;32mI (3899) BarGauge: WiFi initialization complete[0m
+[0;32mI (3899) BarGauge: SNTP initialized[0m
+[0;33mW (3899) i2c.master: Please check pull-up resistances whether be connected properly. Otherwise unexpected behavior would happen. For more detailed information, please read docs[0m
+[0;32mI (3899) RPC_WRAP: ESP Event: wifi station started[0m
+[0;32mI (3909) RX8025T: RX8025T RTC initialized[0m
+[0;32mI (3919) RX8025T: RTC time read: 2025-12-10 16:26:39[0m
+[0;32mI (3919) BarGauge: System time set from RTC: Wed Dec 10 16:26:39 2025[0m
+
+[0;32mI (3929) BarGauge: MIPI DSI PHY Powered on[0m
+[0;32mI (3929) BarGauge: Install MIPI DSI LCD control panel[0m
+[0;32mI (3939) BarGauge: Install LCD driver of st7701[0m
+[0;32mI (3939) jd9365: version: 1.0.2[0m
+[0;32mI (3939) gpio: GPIO[27]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (4149) jd9365: LCD ID: 93 65 04[0m
+[0;32mI (4269) BarGauge: Starting app_main...[0m
+[0;32mI (4269) gpio: GPIO[22]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;33mW (4269) gsl3680: Unable to initialize the I2C address[0m
+[0;32mI (4329) gsl3680: init gls3680[0m
+[0;32mI (4329) gsl3680: gsl3680 connect[0m
+[0;32mI (4329) gsl3680: gsl3680 read reg 0xf0 before is 0 0 0 0[0m
+[0;32mI (4349) gsl3680: gsl3680 writing 0xf0 0x12[0m
+[0;32mI (4369) gsl3680: gsl3680 read reg 0xf0 after is 12 34 56 0[0m
+[0;32mI (4369) gsl3680: start init[0m
+[0;32mI (4369) gsl3680: clear reg[0m
+[0;32mI (4489) gsl3680: start load fw[0m
+[0;32mI (4919) H_API: esp_wifi_remote_connect[0m
+[0;33mW (4949) rpc_rsp: Hosted RPC_Resp [0x21a], uid [7], resp code [12295][0m
+[0;32mI (5329) gsl3680: load fw success[0m
+[0;32mI (5329) gsl3680: enter[0m
+[0;32mI (5339) gsl_point_id: gsl_DataInit[0m
+[0;32mI (5399) gsl3680: enter[0m
+[0;32mI (5409) gsl_point_id: gsl_DataInit[0m
+[0;32mI (5409) gsl3680: enter read_ram_fw[0m
+[0;32mI (5439) gsl3680: gsl3680 startup_chip failed read 0xb0 = 5a,5a,5a,5a [0m
+[0;32mI (5439) gpio: GPIO[21]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:2 [0m
+[0;32mI (5439) BarGauge: interface is 1[0m
+[0;32mI (5439) lv_port: Create LVGL task[0m
+[0;32mI (5489) BarGauge: Setting LCD backlight: 100%[0m
+[0;32mI (5549) BarGauge: Initializing Modbus Master...[0m
+[0;32mI (5549) MB_MASTER: Modbus Master Init...[0m
+[0;32mI (5549) uart: queue free spaces: 20[0m
+[0;32mI (5549) MB_MASTER: Modbus Master Started on Tx:45, Rx:46[0m
+[0;32mI (5549) MB_MASTER: Modbus Master Init Complete[0m
+[0;32mI (5559) BarGauge: Setting LCD backlight: 100%[0m
+[0;32mI (5559) BarGauge: mb_status_label created: 0x4ff509a4[0m
+[0;32mI (5639) BarGauge: grid_page_3 created: 0x4ff580c0[0m
+[0;32mI (5649) main_task: Returned from app_main()[0m
+[0;32mI (7859) RPC_WRAP: ESP Event: Station mode: Connected[0m
+[0;32mI (7859) esp_wifi_remote: esp_wifi_internal_reg_rxcb: sta: 0x400a6086[0m
+[0m--- 0x400a6086: [0;33mwifi_sta_receive[0m[0m at [0;32m/Users/amuthesan/esp/v5.4.1/esp-idf/components/esp_wifi/src/wifi_netif.c[0m[0m:[1;31m38[0m
+[1;31mE (8549) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[0;32mI (8929) esp_netif_handlers: sta ip: 192.168.3.120, mask: 255.255.255.0, gw: 192.168.3.1[0m
+[0;32mI (8929) BarGauge: Got IP: 192.168.3.120[0m
+[1;31mE (11599) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (14649) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (17699) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (20749) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (24249) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (27299) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (30349) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (33399) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (36449) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (39949) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (42999) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (46049) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (49099) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (52149) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (55649) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (58699) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (61749) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (64799) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (67849) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (71349) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m
+[1;31mE (74399) MB_CONTROLLER_MASTER: mbc_master_get_parameter(75): Master get parameter failure, error=(0x107) (ESP_ERR_TIMEOUT).[0m

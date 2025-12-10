@@ -1,0 +1,37 @@
+Script started on Wed Dec 10 16:28:41 2025
+Command: sh -c . /Users/amuthesan/esp/v5.4.1/esp-idf/export.sh && idf.py -p /dev/cu.usbserial-211430 monitor
+Checking "python3" ...
+Python 3.13.7
+"python3" has been detected
+[91mActivating ESP-IDF [0m[1;91m5.4[0m
+Setting IDF_PATH to [32m'/Users/amuthesan/esp/v5.4.1/esp-idf'[0m.
+[91m*[0m Checking python version [33m...[0m [1;32m3.13[0m[32m.[0m[1;32m7[0m
+[91m*[0m Checking python dependencies [33m...[0m [32mOK[0m
+[91m*[0m Deactivating the current ESP-IDF environment [1m([0mif any[1m)[0m [33m...[0m [32mOK[0m
+[91m*[0m Establishing a new ESP-IDF environment [33m...[0m [32mOK[0m
+[91m*[0m Identifying shell [33m...[0m [32mbash[0m
+[91m*[0m Detecting outdated tools in system [33m...[0m [32mFound tools that are not used by active ESP-IDF version.[0m
+[96mFor removing old versions of riscv32-esp-elf, cmake, xtensa-esp32-elf, xtensa-esp-elf, openocd-esp32, esp32ulp-elf, esp-rom-elfs, xtensa-esp-elf-gdb, xtensa-esp32s3-elf, xtensa-clang, xtensa-esp32s2-elf, riscv32-esp-elf-gdb use command [0m[96m'python [0m
+[96m/Users/amuthesan/esp/v5.4.1/esp-idf/tools/idf_tools.py uninstall'[0m
+[96mTo free up even more space, remove installation packages of those tools.[0m
+[96mUse option python [0m[96m/Users/amuthesan/esp/v5.4.1/esp-idf/tools/[0m[96midf_tools.py[0m[96m uninstall --remove-archives.[0m
+[91m*[0m Shell completion [33m...[0m [32mAutocompletion code generated[0m
+WARNING: Failed to load shell autocompletion for bash version: 3.2.57(1)-release!
+
+Done! You can now compile ESP-IDF projects.
+Go to the project directory and run:
+
+  idf.py build
+Executing action: monitor
+Running idf_monitor in directory '/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge'
+Executing "/Users/amuthesan/.espressif/python_env/idf5.4_py3.13_env/bin/python /Users/amuthesan/esp/v5.4.1/esp-idf/tools/idf_monitor.py -p /dev/cu.usbserial-211430 -b 115200 --toolchain-prefix riscv32-esp-elf- --target esp32p4 --revision 1 --decode-panic backtrace '/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/build/lvgl_sw_rotation.elf' -m '/Users/amuthesan/.espressif/python_env/idf5.4_py3.13_env/bin/python' '/Users/amuthesan/esp/v5.4.1/esp-idf/tools/idf.py' '-p' '/dev/cu.usbserial-211430'"...
+[0;33m--- esp-idf-monitor 1.8.0 on /dev/cu.usbserial-211430 115200[0m
+[0;33m--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H[0m
+[0;33m--- Connection to /dev/cu.usbserial-211430 failed. Available ports:
+--- /dev/cu.debug-console
+--- /dev/cu.usbserial-211430[0m
+[0m
+[Errno 35] Could not exclusively lock port /dev/cu.usbserial-211430: [Errno 35] Resource temporarily unavailable
+
+Command exit status: 0
+Script done on Wed Dec 10 16:28:44 2025

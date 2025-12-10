@@ -801,7 +801,7 @@ static void create_settings_screen(void) {
     
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
-    lv_label_set_text(lbl_ver, "App Version: v0.4.0");
+    lv_label_set_text(lbl_ver, "App Version: v0.4.1");
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
@@ -980,10 +980,11 @@ static void create_trending_screen(void) {
 static void gas_update_timer_cb(lv_timer_t * timer) {
     // Only update gauges for the CURRENT page to save performance
     // Page 0: 0-7, Page 1: 8-15
-    int start_idx = current_page * 8;
-    int end_idx = start_idx + 8;
+    if (current_page < 2) {
+        int start_idx = current_page * 8;
+        int end_idx = start_idx + 8;
 
-    for (int i = start_idx; i < end_idx; i++) {
+        for (int i = start_idx; i < end_idx; i++) {
         if (gauge_arcs[i] && gauge_labels[i]) {
             // Read from Modbus Data
             // Divide by 10/100/etc if needed? modbus_config.json says "Volts" but typically raw ADC.
@@ -1001,23 +1002,29 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
                  // val = 0; // Optional
             }
 
-            // Update Arc
-            lv_arc_set_value(gauge_arcs[i], val);
-            
-            // Update Label
-            lv_label_set_text_fmt(gauge_labels[i], "%d", val);
-            
-            // Dynamic Color Logic
-            if (val <= gauge_configs[i].blue_limit) {
-                lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0x00FFFF), LV_PART_INDICATOR); // Cyan
-            } 
-            else if (val <= gauge_configs[i].yellow_limit) {
-                 lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFFFF00), LV_PART_INDICATOR); // Yellow
+            // Update Arc (Only if changed)
+            if (lv_arc_get_value(gauge_arcs[i]) != val) {
+                lv_arc_set_value(gauge_arcs[i], val);
+                lv_label_set_text_fmt(gauge_labels[i], "%d", val);
             }
-            else {
-                lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFF0000), LV_PART_INDICATOR); // Red
+            
+            // Dynamic Color Logic (Optimized: Only update on state change)
+            static int last_zone[16] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+            int current_zone = 0; // 0: Blue, 1: Yellow, 2: Red
+
+            if (val <= gauge_configs[i].blue_limit) current_zone = 0;
+            else if (val <= gauge_configs[i].yellow_limit) current_zone = 1;
+            else current_zone = 2;
+
+            if (last_zone[i] != current_zone) {
+                if (current_zone == 0) lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0x00FFFF), LV_PART_INDICATOR);
+                else if (current_zone == 1) lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFFFF00), LV_PART_INDICATOR);
+                else lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFF0000), LV_PART_INDICATOR);
+                
+                last_zone[i] = current_zone;
             }
         }
+    }
     }
     
     // Update Chart if visible (Trend logic - simplified)
@@ -1034,42 +1041,59 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
             else all_connected = false;
         }
 
-        if (all_connected) {
-            lv_label_set_text(mb_status_label, "MB: OK");
-            lv_obj_set_style_text_color(mb_status_label, lv_color_hex(0x00FF00), 0);
-        } else if (any_connected) {
-             lv_label_set_text(mb_status_label, "MB: PARTIAL");
-             lv_obj_set_style_text_color(mb_status_label, lv_color_hex(0xFFFF00), 0);
-        } else {
-             lv_label_set_text(mb_status_label, "MB: ERR");
-             lv_obj_set_style_text_color(mb_status_label, lv_color_hex(0xFF0000), 0);
+        static int last_mb_status = -1; // 0: OK, 1: PARTIAL, 2: ERR
+        int current_mb_status = 2;
+
+        if (all_connected) current_mb_status = 0;
+        else if (any_connected) current_mb_status = 1;
+        else current_mb_status = 2;
+
+        if (last_mb_status != current_mb_status) {
+            if (current_mb_status == 0) {
+                lv_label_set_text(mb_status_label, "MB: OK");
+                lv_obj_set_style_text_color(mb_status_label, lv_color_hex(0x00FF00), 0);
+            } else if (current_mb_status == 1) {
+                 lv_label_set_text(mb_status_label, "MB: PARTIAL");
+                 lv_obj_set_style_text_color(mb_status_label, lv_color_hex(0xFFFF00), 0);
+            } else {
+                 lv_label_set_text(mb_status_label, "MB: ERR");
+                 lv_obj_set_style_text_color(mb_status_label, lv_color_hex(0xFF0000), 0);
+            }
+            lv_obj_move_foreground(mb_status_label); // Ensure visibility
+            last_mb_status = current_mb_status;
         }
+    } else {
+        ESP_LOGW(TAG, "mb_status_label invalid or NULL");
     }
 
     // Update Page 3 (Relays & Buttons)
-    if (current_page == 2 && grid_page_3 != NULL) {
-        // Relays
-        for(int i=0; i<16; i++) {
-            if (relay_leds[i] && lv_obj_is_valid(relay_leds[i])) { // Added safety check
-                if(sys_modbus_data.relays[i]) lv_led_on(relay_leds[i]);
-                else lv_led_off(relay_leds[i]);
-                
-                // Dim if disconnected
-                bool connected = (i < 8) ? sys_modbus_data.connected[2] : sys_modbus_data.connected[3];
-                if(!connected) lv_led_set_color(relay_leds[i], lv_color_hex(0x505050));
-                else lv_led_set_color(relay_leds[i], lv_color_hex(0x00FF00));
+    if (current_page == 2) {
+        if (grid_page_3 != NULL && lv_obj_is_valid(grid_page_3)) {
+             // Relays
+            for(int i=0; i<16; i++) {
+                if (relay_leds[i] && lv_obj_is_valid(relay_leds[i])) { 
+                    if(sys_modbus_data.relays[i]) lv_led_on(relay_leds[i]);
+                    else lv_led_off(relay_leds[i]);
+                    
+                    // Dim if disconnected
+                    bool connected = (i < 8) ? sys_modbus_data.connected[2] : sys_modbus_data.connected[3];
+                    if(!connected) lv_led_set_color(relay_leds[i], lv_color_hex(0x505050));
+                    else lv_led_set_color(relay_leds[i], lv_color_hex(0x00FF00));
+                }
             }
-        }
-        // Buttons
-        for(int i=0; i<4; i++) {
-            if (input_leds[i] && lv_obj_is_valid(input_leds[i])) {
-                if(sys_modbus_data.buttons[i]) lv_led_on(input_leds[i]);
-                else lv_led_off(input_leds[i]);
-                
-                // Using ID4 Status
-                 if(!sys_modbus_data.connected[3]) lv_led_set_color(input_leds[i], lv_color_hex(0x505050));
-                 else lv_led_set_color(input_leds[i], lv_color_hex(0x00FF00));
+            // Buttons
+             for(int i=0; i<4; i++) {
+                if (input_leds[i] && lv_obj_is_valid(input_leds[i])) { // Added safety check
+                    if(sys_modbus_data.buttons[i]) lv_led_on(input_leds[i]);
+                    else lv_led_off(input_leds[i]);
+                    
+                    // Using ID4 Status
+                     if(!sys_modbus_data.connected[3]) lv_led_set_color(input_leds[i], lv_color_hex(0x505050));
+                     else lv_led_set_color(input_leds[i], lv_color_hex(0x00FF00));
+                }
             }
+        } else {
+            ESP_LOGE(TAG, "Page 3 invalid during update!");
         }
     }
 }
@@ -1172,7 +1196,10 @@ static void create_main_screen(void) {
         
         // Modbus Status Label (Top Center)
         mb_status_label = lv_label_create(main_screen);
-        lv_label_set_text(mb_status_label, ""); // Init empty
+        if(mb_status_label) ESP_LOGI(TAG, "mb_status_label created: %p", mb_status_label);
+        else ESP_LOGE(TAG, "Failed to create mb_status_label");
+
+        lv_label_set_text(mb_status_label, "MB: INIT"); // Init with text to be visible
         lv_obj_set_style_text_font(mb_status_label, &lv_font_montserrat_20, 0);
         lv_obj_align(mb_status_label, LV_ALIGN_TOP_MID, 0, 10);
 
@@ -1223,6 +1250,8 @@ static void create_main_screen(void) {
         
         // Page 3 Container (Relay Monitor) - Initially Hidden
         grid_page_3 = lv_obj_create(main_screen);
+        if(grid_page_3) ESP_LOGI(TAG, "grid_page_3 created: %p", grid_page_3);
+        else ESP_LOGE(TAG, "Failed to create grid_page_3");
         lv_obj_set_size(grid_page_3, 1140, 720); 
         lv_obj_align(grid_page_3, LV_ALIGN_CENTER, 0, 20); 
         lv_obj_set_style_bg_opa(grid_page_3, 0, 0);
