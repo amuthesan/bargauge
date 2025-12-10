@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.5.4
+- **Gauge Activation**: Added "Activation" tab in Settings to enable/disable individual gauges.
+  - Inactive gauges are visually dimmed (30% opacity) and set to 0.
+  - Inactive gauges do not trigger alarms.
+  - Settings are saved to NVS.
+- **Trending Upgrade**:
+  - Fixed bug where clicking "Trending" opened Settings.
+  - Trending chart now dynamically loads data for the selected gauge.
+  - Optimized chart rendering to only update when visible.
+- **Refactor**: Improved NVS load/save logic and global variable management.
+
 ## [v0.5.3] - 2025-12-11
 ### Changed
 - **Procedural Warning Icon**: Replaced font-based `ALERT` text and potentially blurry glyphs with a sharp, procedurally drawn yellow triangle and black exclamation mark.
