@@ -14,6 +14,7 @@
 #include "esp_sntp.h"
 #include "esp_event.h"
 #include "driver/spi_master.h"
+#undef LOG_LOCAL_LEVEL
 #define LOG_LOCAL_LEVEL ESP_LOG_NONE // Force disable logging for Modbus silence
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -30,6 +31,7 @@
 #include "esp_lcd_st7701.h"
 #include "esp_lcd_touch_cst816s.h"
 #include "rx8025t.h" // RTC Driver
+#include "trend_manager.h"
 // #include "esp_lcd_touch_gsl3680.h" // Removed to avoid firmware duplication
 
 #define ESP_LCD_TOUCH_IO_I2C_GSL3680_ADDRESS (0x40)
@@ -459,8 +461,8 @@ static lv_obj_t * gauge_unit_labels[16] = {NULL};
 static lv_obj_t * mb_status_label = NULL; // Modbus Status Label
 static lv_obj_t * trending_screen = NULL;
 static lv_obj_t * trending_title_label = NULL;
-static lv_obj_t * const_chart = NULL;
-static lv_chart_series_t * const_ser1 = NULL;
+// static lv_obj_t * const_chart = NULL; // Moved to near usage
+// static lv_chart_series_t * const_ser1 = NULL; // Moved to near usage
 static lv_obj_t * warning_label = NULL; // Status Warning Label (Top Left)
 static lv_obj_t * relay_leds[16] = {NULL};
 static lv_obj_t * input_leds[4] = {NULL};
@@ -619,6 +621,7 @@ static void create_settings_screen(void);
 static void create_main_screen(void);
 static void next_page_cb(lv_event_t * e);
 static void prev_page_cb(lv_event_t * e);
+static void back_from_trending_cb(lv_event_t * e);
 
 // Global/Static references for updates
 static lv_obj_t * time_label = NULL; // For time display
@@ -627,6 +630,160 @@ static lv_obj_t * wifi_status_icon = NULL; // For WiFi status
 static lv_obj_t * main_screen = NULL;
 static lv_obj_t * settings_screen = NULL;
 static lv_obj_t * kb = NULL; // Global keyboard
+
+// --- Trending Checkbox Callback ---
+static int current_trending_index = 0;
+static bool trending_live_mode = false;
+static lv_obj_t * const_chart = NULL;
+static lv_chart_series_t * const_ser1 = NULL;
+
+static void refresh_trending_chart(void) {
+    if (!const_chart || !const_ser1) return;
+
+    // Update Title
+    if (trending_title_label) {
+        lv_label_set_text_fmt(trending_title_label, "Trending Data for %s (%s)", 
+            gauge_configs[current_trending_index].name,
+            trending_live_mode ? "LIVE" : "24 Hours");
+    }
+
+    lv_chart_set_range(const_chart, LV_CHART_AXIS_PRIMARY_Y, 
+        gauge_configs[current_trending_index].min_val, 
+        gauge_configs[current_trending_index].max_val);
+
+    if (trending_live_mode) {
+        // Live Mode: Reset to empty or small window, relying on timer to push data
+        lv_chart_set_point_count(const_chart, 50); // 50 points window
+        // lv_chart_refresh(const_chart); // Will be filled by timer
+    } else {
+        // 24h Mode: Load from Trend Manager
+        lv_chart_set_point_count(const_chart, TREND_HISTORY_SIZE);
+        
+        uint16_t * raw_data = trend_manager_get_data(current_trending_index);
+        uint16_t head = trend_manager_get_head(current_trending_index);
+        bool full = trend_manager_is_full(current_trending_index);
+        
+        if (raw_data) {
+             lv_chart_series_t * ser = const_ser1;
+             
+             // Calculate Count
+             int count = full ? TREND_HISTORY_SIZE : head; 
+             if (count == 0) count = 1; // Avoid 0 count
+             
+             // Resize (Temporary, LVGL might realloc, ensure this is safe)
+             // Actually lv_chart_set_point_count does realloc.
+             // If we set count to 1440, we MUST provide 1440 points or it looks weird?
+             // No, standard is 1440. We shift data in.
+             
+             // Wait, if not full, we only have 'head' points. 
+             // If we set point_count=1440, 0s will be displayed?
+             // Better to set point_count = count.
+             lv_chart_set_point_count(const_chart, count);
+
+             for(int i=0; i < count; i++) {
+                 int idx;
+                 if (full) {
+                     idx = (head + i) % TREND_HISTORY_SIZE;
+                 } else {
+                     idx = i;
+                 }
+                 
+                 // Raw Value -> Scaled Value? 
+                 // Chart range is already set to min/max.
+                 // But raw_data is RAW analog (4000-20000). 
+                 // We need to map it to Gauge Values (0-100 etc) BEFORE putting in chart.
+                 
+                 int raw = raw_data[idx];
+                 long in_min = gauge_configs[current_trending_index].analog_min;
+                 long in_max = gauge_configs[current_trending_index].analog_max;
+                 long out_min = gauge_configs[current_trending_index].min_val;
+                 long out_max = gauge_configs[current_trending_index].max_val;
+                 
+                 int val = raw;
+                 if ((in_max - in_min) != 0) {
+                      val = (int)((raw - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
+                 }
+                 
+                 lv_chart_set_next_value(const_chart, ser, val);
+             }
+        }
+    }
+}
+
+static void trending_mode_sw_cb(lv_event_t * e) {
+    lv_obj_t * sw = lv_event_get_target(e);
+    trending_live_mode = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    refresh_trending_chart();
+}
+
+static void trending_btn_event_cb(lv_event_t * e) {
+    intptr_t idx = (intptr_t)lv_event_get_user_data(e);
+    current_trending_index = (int)idx;
+    
+    // Ensure screen is created
+    if (!trending_screen) {
+        create_trending_screen();
+    }
+    
+    // Reset to 24h mode by default? Or keep state? Let's keep 24h default.
+    // If we want persistent state, don't reset. But user asked for option.
+    // Let's reset purely for predictability or check switch state.
+    // If screen was just created, switch is OFF (24h).
+    // If screen existed, we should sync with switch.
+    // Let's force refresh based on current switch state (which might be preserved).
+    
+    refresh_trending_chart();
+
+    lv_scr_load(trending_screen);
+    ESP_LOGI(TAG, "Opened Trending for Gauge %d", current_trending_index + 1);
+}
+
+static void create_trending_screen(void) {
+    if(trending_screen) return; // Already created
+
+    trending_screen = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(trending_screen, lv_color_hex(0x000000), 0); // Black bg
+
+    trending_title_label = lv_label_create(trending_screen);
+    lv_label_set_text(trending_title_label, "Trending Data"); // Updated by refresh
+    lv_obj_set_style_text_font(trending_title_label, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(trending_title_label, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(trending_title_label, LV_ALIGN_TOP_MID, 0, 20);
+
+    // Chart
+    lv_obj_t * chart = lv_chart_create(trending_screen);
+    lv_obj_set_size(chart, 1100, 600);
+    lv_obj_align(chart, LV_ALIGN_CENTER, 0, 20);
+    lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
+    lv_chart_set_point_count(chart, TREND_HISTORY_SIZE); 
+    lv_chart_set_div_line_count(chart, 5, 7); 
+    
+    lv_obj_set_style_bg_color(chart, lv_color_hex(0x101010), 0);
+    lv_obj_set_style_border_color(chart, lv_color_hex(0x404040), 0);
+    lv_obj_set_style_line_color(chart, lv_color_hex(0x303030), LV_PART_MAIN); 
+    
+    const_ser1 = lv_chart_add_series(chart, lv_color_hex(0x00E0FF), LV_CHART_AXIS_PRIMARY_Y);
+    const_chart = chart;
+
+    // Toggle: Live vs 24h
+    lv_obj_t * sw_mode = lv_switch_create(trending_screen);
+    lv_obj_align(sw_mode, LV_ALIGN_TOP_RIGHT, -40, 20);
+    lv_obj_add_event_cb(sw_mode, trending_mode_sw_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    
+    lv_obj_t * lbl_sw = lv_label_create(trending_screen);
+    lv_label_set_text(lbl_sw, "Live Mode");
+    lv_obj_set_style_text_color(lbl_sw, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align_to(lbl_sw, sw_mode, LV_ALIGN_OUT_LEFT_MID, -10, 0);
+
+    // Back Button
+    lv_obj_t * btn_back = lv_btn_create(trending_screen);
+    lv_obj_align(btn_back, LV_ALIGN_TOP_LEFT, 40, 20);
+    lv_obj_add_event_cb(btn_back, back_from_trending_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t * lbl_back = lv_label_create(btn_back);
+    lv_label_set_text(lbl_back, "BACK");
+    lv_obj_center(lbl_back);
+}
 
 // Settings Text Areas
 static lv_obj_t * ta_name = NULL;
@@ -644,44 +801,6 @@ static lv_obj_t * sys_wifi_label = NULL;
 static lv_obj_t * sys_ip_label = NULL;
 static lv_obj_t * sys_mqtt_label = NULL; // MQTT Status
 
-
-// --- Trending Checkbox Callback ---
-static int current_trending_index = 0;
-
-static void trending_btn_event_cb(lv_event_t * e) {
-    intptr_t idx = (intptr_t)lv_event_get_user_data(e);
-    current_trending_index = (int)idx;
-    
-    // Update Trending Screen Content
-    if (trending_screen && lv_obj_is_valid(trending_screen)) {
-        // Find Title Label (Assuming child 0 or finding by type, but ideally stored in static var)
-        // For robustness, let's just recreate content or use known pointers if stored.
-        // Actually, `create_trending_screen` assigns `const_chart`.
-        // We need to update Title and Chart Range.
-        
-        // Find Label: We didn't store it globally. Best to optimize:
-        // Let's store trending_title_label globally.
-    } else {
-        create_trending_screen(); // Lazy init if null
-    }
-
-    // Update Title
-    extern lv_obj_t * trending_title_label; // Forward decl or ensure it's global
-    if(trending_title_label) {
-        lv_label_set_text_fmt(trending_title_label, "Trending Data for %s", gauge_configs[current_trending_index].name);
-    }
-
-    // Update Chart
-    if(const_chart) {
-        lv_chart_set_range(const_chart, LV_CHART_AXIS_PRIMARY_Y, gauge_configs[current_trending_index].min_val, gauge_configs[current_trending_index].max_val);
-        // Clear old data visual
-        lv_chart_set_point_count(const_chart, 0); // Clear
-        lv_chart_set_point_count(const_chart, 50); // Restore
-    }
-
-    lv_scr_load(trending_screen);
-    ESP_LOGI(TAG, "Opened Trending for Gauge %d", current_trending_index + 1);
-}
 
 // --- Activation Checkbox Callback ---
 static void activation_checkbox_cb(lv_event_t * e) {
@@ -1147,7 +1266,7 @@ static void create_settings_screen(void) {
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
     // Use macro for version
-    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "0.6.1"); 
+    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "0.6.2"); 
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
@@ -1369,53 +1488,6 @@ static lv_obj_t* create_gas_widget(lv_obj_t *parent, int index) {
     return container;
 }
 
-static void create_trending_screen(void) {
-    if(trending_screen) return; // Already created
-
-    trending_screen = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(trending_screen, lv_color_hex(0x000000), 0); // Black bg
-
-    trending_title_label = lv_label_create(trending_screen);
-    // Use current_trending_index which is set by the button before calling this if lazy, 
-    // or set default if called at init.
-    lv_label_set_text_fmt(trending_title_label, "Trending Data for %s", gauge_configs[current_trending_index].name);
-    lv_obj_set_style_text_color(trending_title_label, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_text_font(trending_title_label, &lv_font_montserrat_24, 0);
-    lv_obj_align(trending_title_label, LV_ALIGN_TOP_MID, 0, 20);
-
-    lv_obj_t * back_btn = lv_btn_create(trending_screen);
-    lv_obj_set_size(back_btn, 100, 40);
-    lv_obj_align(back_btn, LV_ALIGN_TOP_LEFT, 20, 20);
-    lv_obj_set_style_bg_color(back_btn, lv_color_hex(0x202020), 0);
-    lv_obj_set_style_border_color(back_btn, lv_color_hex(0x505050), 0);
-    lv_obj_set_style_border_width(back_btn, 1, 0);
-    lv_obj_add_event_cb(back_btn, back_from_trending_cb, LV_EVENT_CLICKED, NULL);
-    
-    lv_obj_t * lbl = lv_label_create(back_btn);
-    lv_label_set_text(lbl, LV_SYMBOL_LEFT " Back");
-    lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_center(lbl);
-
-    // Chart Implementation
-    lv_obj_t * chart = lv_chart_create(trending_screen);
-    lv_obj_set_size(chart, 600, 300); // Landscape
-    lv_obj_center(chart);
-    lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
-    lv_chart_set_point_count(chart, 50); // Show last 50 points
-    lv_chart_set_div_line_count(chart, 5, 7);
-    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, gauge_configs[current_trending_index].min_val, gauge_configs[current_trending_index].max_val);
-    
-    // Style: Dark Chart Background
-    lv_obj_set_style_bg_color(chart, lv_color_hex(0x101010), 0);
-    lv_obj_set_style_border_color(chart, lv_color_hex(0x404040), 0);
-    
-    // Style: Grid lines
-    lv_obj_set_style_line_color(chart, lv_color_hex(0x303030), LV_PART_MAIN); 
-    
-    // Series: Cyan
-    const_ser1 = lv_chart_add_series(chart, lv_color_hex(0x00E0FF), LV_CHART_AXIS_PRIMARY_Y);
-    const_chart = chart;
-}
 
 // Update all 16 gauges - Simulation Mode
 static void gas_update_timer_cb(lv_timer_t * timer) {
@@ -1558,6 +1630,16 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
             if (val > gauge_configs[i].threshold) {
                 any_alarm_active = true;
                 
+                // Add to chart if Live Mode is active and this is the selected gauge
+                if (trending_live_mode && 
+                    trending_screen && 
+                    lv_scr_act() == trending_screen && 
+                    current_trending_index == i && 
+                    const_chart && 
+                    const_ser1) {
+                    
+                    lv_chart_set_next_value(const_chart, const_ser1, val);
+                }
                 // Update Warning Screen Source Text (Show the FIRST one found for now, or cycle? First is fine)
                 if (lbl_warning_source) {
                     lv_label_set_text_fmt(lbl_warning_source, "Source: %s\nLevel: %d %s", 
@@ -1819,6 +1901,24 @@ static void update_time_timer_cb(lv_timer_t * timer) {
         lv_label_set_text_fmt(time_label, "%02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
     }
     
+    // --- 1-Minute Trend Update ---
+    static int last_min = -1;
+    if (timeinfo.tm_min != last_min) {
+        last_min = timeinfo.tm_min;
+        
+        // Add current value for ALL gauges
+        // Note: Using current instantaneous value. Could average but raw is fine per spec.
+        for(int i=0; i<16; i++) {
+             trend_manager_add_point(i, sys_modbus_data.analog_vals[i]);
+        }
+        
+        // --- 12-Hour Save Persistence ---
+        // Save at 00:00 and 12:00 to minimize flash wear
+        if (timeinfo.tm_min == 0 && (timeinfo.tm_hour % 12 == 0)) {
+            trend_manager_save_to_nvs();
+        }
+    }
+    
     if (wifi_status_icon) {
         if (wifi_connected) {
             lv_obj_set_style_text_color(wifi_status_icon, lv_color_hex(0x00AA00), 0); // Green
@@ -2066,6 +2166,9 @@ void app_main(void)
     
     // Init Configs (Load from NVS)
     load_gauge_configs();
+    
+    // Init Trending (mounts SPIFFS, allocates PSRAM)
+    trend_manager_init();
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 

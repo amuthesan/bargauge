@@ -4,5 +4,5 @@ cmake_minimum_required(VERSION 3.16)
 set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../1-Demo/idf-examples/common_components")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(lvgl_sw_rotation)
+project(lvgl_sw_rotation VERSION "0.6.2")
 set(PROJECT_VER "0.6.1")
