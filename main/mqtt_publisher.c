@@ -75,7 +75,7 @@ void mqtt_app_start(void)
     ESP_LOGI(TAG, "MQTT Client Started");
 }
 
-void mqtt_publish_gauge_data(float *values, int count)
+void mqtt_publish_gauge_data(float *values, GasGaugeConfig *configs, int count)
 {
     if (!client || !mqtt_connected) {
         ESP_LOGW(TAG, "Cannot publish: MQTT not connected");
@@ -84,17 +84,38 @@ void mqtt_publish_gauge_data(float *values, int count)
 
     if (count < 16) return;
 
-    char payload[512]; // Increased buffer
-    // Format: {"device": "esp32-01", "ai": {"ch1": ..., "ch16": ...}}
+    // Buffer size needs to be larger for the expanded JSON
+    char payload[2048]; 
+    // Format: {"device": "esp32-01", "ai": {"ch1": {"val": 12.34, "unit": "PPM", "min": 0, ...}, ...}}
     int offset = snprintf(payload, sizeof(payload), "{\"device\": \"esp32-01\", \"ai\": {");
     
     for (int i = 0; i < 16; i++) {
-        offset += snprintf(payload + offset, sizeof(payload) - offset, "\"ch%d\": %.2f%s", 
-            i + 1, values[i], (i < 15) ? ", " : "");
-        if (offset >= sizeof(payload)) break;
+        // Ensure we don't overflow buffer
+        if (offset >= sizeof(payload) - 100) {
+            ESP_LOGE(TAG, "Payload buffer overflow!");
+            break;
+        }
+
+        offset += snprintf(payload + offset, sizeof(payload) - offset, 
+            "\"ch%d\": {"
+            "\"val\": %.2f, "
+            "\"thr\": %d, "
+            "\"min\": %d, "
+            "\"max\": %d, "
+            "\"unit\": \"%s\""
+            "}%s", 
+            i + 1, 
+            values[i], 
+            configs[i].threshold,
+            configs[i].min_val,
+            configs[i].max_val,
+            configs[i].unit,
+            (i < 15) ? ", " : "");
     }
     
-    snprintf(payload + offset, sizeof(payload) - offset, "}}");
+    if (offset < sizeof(payload)) {
+        snprintf(payload + offset, sizeof(payload) - offset, "}}");
+    }
 
     int msg_id = esp_mqtt_client_publish(client, "unisem", payload, 0, 1, 0);
     ESP_LOGI(TAG, "published %d bytes, msg_id=%d", offset, msg_id);

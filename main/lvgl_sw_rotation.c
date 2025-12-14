@@ -424,27 +424,7 @@ static esp_err_t bsp_display_backlight_on(void)
     return bsp_display_brightness_set(100);
 }
 
-// --- Configuration Structure ---
-typedef struct {
-    char name[32];    // Gauge Name
-    char unit[16];    // Gauge Unit (e.g. "PPM")
-    int min_val;
-    int max_val;
-    int blue_limit;   // 0 to blue_limit (Cyan)
-    int yellow_limit; // blue_limit to yellow_limit (Yellow)
-    int red_limit;    // yellow_limit to red_limit (Warning?? No, usually Red starts here)
-    int threshold;    // Future use
-    int analog_min;   // Raw Analog Input Min (e.g. 4000)
-    int analog_max;   // Raw Analog Input Max (e.g. 20000)
-    int trigger_relay_index; // 0: None, 1-16: Relay to trigger on alarm (Independent)
-} GasGaugeConfig;
-
-typedef struct {
-    int siren_relay_index;  // 0: None, 1-16: Relay Index
-    bool siren_invert;      // false: Active=ON, true: Active=OFF
-    int strobe_relay_index; // 0: None, 1-16: Relay Index
-    bool strobe_invert;     // false: Active=ON, true: Active=OFF
-} SafetyConfig;
+#include "gauge_config.h"
 
 static GasGaugeConfig gauge_configs[16];
 static SafetyConfig safety_config; // Global Instance
@@ -463,7 +443,7 @@ static void mqtt_timer_cb(lv_timer_t * t) {
         }
         values[i] = val;
     }
-    mqtt_publish_gauge_data(values, 16);
+    mqtt_publish_gauge_data(values, gauge_configs, 16);
 }
 
 static int current_edit_index = 0; // Index of gauge currently being edited in settings
@@ -1167,7 +1147,7 @@ static void create_settings_screen(void) {
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
     // Use macro for version
-    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "0.6.0"); 
+    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "0.6.1"); 
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);

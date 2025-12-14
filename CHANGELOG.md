@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.1] - 2025-12-15
+### Added
+- **Rich MQTT Payload**: The MQTT payload now includes detailed metadata for each channel:
+  - `val`: Current value (float).
+  - `thr`: Threshold level.
+  - `min`: Gauge minimum value.
+  - `max`: Gauge maximum value.
+  - `unit`: Measurement unit (e.g., "PPM").
+- **Single JSON Payload**: All 16 channels are now sent in a single JSON object for efficient cloud parsing.
+- **Gauge Config Header**: Extracted `GasGaugeConfig` struct to `gauge_config.h` for shared access between modules.
+
+## v0.6.0
+- **Independent Relay Trigger**: Each of the 16 gauges can now trigger a specific relay independently.
+- **Relay Configuration**: Added dropdown in Gauge Config tab to select the target relay (1-16) for each gauge.
+- **Logic**: If a gauge exceeds its threshold, the assigned relay is activated. Logic respects conflicts with Siren/Strobe (Alarm priority).
+- **NVS**: Trigger relay configuration is saved to NVS.
+
 ## v0.5.4
 - **Gauge Activation**: Added "Activation" tab in Settings to enable/disable individual gauges.
   - Inactive gauges are visually dimmed (30% opacity) and set to 0.
@@ -140,8 +157,6 @@ All notable changes to this project will be documented in this file.
     - Simulated real-time updates.
 - **Trending Screen**: Added a secondary screen accessible via "Trending" button.
 - **Dependencies**: Added `esp_driver_ppa`, `esp_mm`, `usb` (drivers) to CMakeLists.
-
-### Fixed
 - **Build System**: Restored missing `main/CMakeLists.txt` and fixed `undefined reference to app_main`.
 - **Refactoring**: Cleaned up `lvgl_sw_rotation.c` structure (helper functions vs `app_main`).
 
