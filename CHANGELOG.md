@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.6.3] - 2025-12-15
+### Added
+- **24-Hour Trending Graph**: Implemented a historical trending graph for all 16 gauges, displaying data over the last 24 hours.
+- **Live Mode**: Added a "Live Mode" toggle to the trending screen to visualize real-time data updates (refreshing every 200ms).
+- **Data Persistence**: Trend data is stored in a PSRAM circular buffer and periodically saved to the `storage` partition (SPIFFS).
+- **Flash Optimization**: To reduce flash wear, trend data is saved to persistent storage only twice daily (every 12 hours).
+- **Graph UI**: The trending graph dynamically scales the Y-axis based on the selected gauge's min/max values and includes a clear "Live" vs "24 Hours" indicator.
+
+### Fixed
+- **Trending Graph Rendering**: Resolved issues where the graph would not populate correctly upon reopening.
+- **Build Configuration**: Fixed `const_chart` duplication and `LOG_LOCAL_LEVEL` redefinition errors in the build.
+
 ## [v0.6.1] - 2025-12-15
 ### Added
 - **Rich MQTT Payload**: The MQTT payload now includes detailed metadata for each channel:
