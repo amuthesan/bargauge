@@ -636,6 +636,9 @@ static int current_trending_index = 0;
 static bool trending_live_mode = false;
 static lv_obj_t * const_chart = NULL;
 static lv_chart_series_t * const_ser1 = NULL;
+static lv_obj_t * trend_x_labels[5] = {NULL}; // For X-axis time marks
+static lv_obj_t * y_max_label = NULL;
+static lv_obj_t * y_min_label = NULL;
 
 static void refresh_trending_chart(void) {
     if (!const_chart || !const_ser1) return;
@@ -650,6 +653,37 @@ static void refresh_trending_chart(void) {
     lv_chart_set_range(const_chart, LV_CHART_AXIS_PRIMARY_Y, 
         gauge_configs[current_trending_index].min_val, 
         gauge_configs[current_trending_index].max_val);
+    
+    // Update Y-Axis Labels
+    if(y_max_label) lv_label_set_text_fmt(y_max_label, "%d", gauge_configs[current_trending_index].max_val);
+    if(y_min_label) lv_label_set_text_fmt(y_min_label, "%d", gauge_configs[current_trending_index].min_val);
+
+    // Update X-Axis Labels (Time)
+    time_t now;
+    time(&now);
+    struct tm timeinfo;
+    
+    // In Live Mode, labels are different or static "Now"
+    // In 24h Mode, labels are -24h to Now
+    for(int i=0; i<5; i++) {
+        if(trend_x_labels[i]) {
+            if(trending_live_mode) {
+                // Live Mode Labels
+                if(i == 4) lv_label_set_text(trend_x_labels[i], "Now");
+                else if(i == 0) lv_label_set_text(trend_x_labels[i], "-10s");
+                else lv_label_set_text(trend_x_labels[i], ""); // Hide others
+            } else {
+                // 24h Mode Labels
+                // Marks: -24h, -18h, -12h, -6h, Now (Index 0 to 4)
+                // Actually let's do: 0 (-24), 1 (-18), 2 (-12), 3 (-6), 4 (Now)
+                int offset_hours = (4 - i) * 6; // 24, 18, 12, 6, 0
+                time_t past = now - (offset_hours * 3600);
+                localtime_r(&past, &timeinfo);
+                
+                lv_label_set_text_fmt(trend_x_labels[i], "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+            }
+        }
+    }
 
     if (trending_live_mode) {
         // Live Mode: Reset to empty or small window, relying on timer to push data
@@ -762,8 +796,42 @@ static void create_trending_screen(void) {
     lv_obj_set_style_border_color(chart, lv_color_hex(0x404040), 0);
     lv_obj_set_style_line_color(chart, lv_color_hex(0x303030), LV_PART_MAIN); 
     
+    // Enable Axis Ticks - Removed for LVGL v9 compatibility
+    // lv_chart_set_axis_tick(chart, LV_CHART_AXIS_PRIMARY_Y, 10, 5, 5, 2, true, 40);
+    // lv_chart_set_axis_tick(chart, LV_CHART_AXIS_PRIMARY_X, 10, 5, 5, 2, true, 20);
+
     const_ser1 = lv_chart_add_series(chart, lv_color_hex(0x00E0FF), LV_CHART_AXIS_PRIMARY_Y);
     const_chart = chart;
+
+    // Y-Axis Labels (Manual)
+    y_max_label = lv_label_create(trending_screen);
+    lv_obj_set_style_text_font(y_max_label, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(y_max_label, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_align_to(y_max_label, chart, LV_ALIGN_OUT_LEFT_TOP, -10, 0);
+    lv_label_set_text(y_max_label, "100");
+
+    y_min_label = lv_label_create(trending_screen);
+    lv_obj_set_style_text_font(y_min_label, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(y_min_label, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_align_to(y_min_label, chart, LV_ALIGN_OUT_LEFT_BOTTOM, -10, 0);
+    lv_label_set_text(y_min_label, "0");
+
+    // X-Axis Label Container (Below Chart)
+    lv_obj_t * x_axis_cont = lv_obj_create(trending_screen);
+    lv_obj_set_size(x_axis_cont, 1100, 30);
+    lv_obj_align_to(x_axis_cont, chart, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_bg_opa(x_axis_cont, 0, 0); // Transparent
+    lv_obj_set_style_border_width(x_axis_cont, 0, 0);
+    lv_obj_set_flex_flow(x_axis_cont, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(x_axis_cont, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    
+    // Create 5 Static Labels
+    for(int i=0; i<5; i++) {
+        trend_x_labels[i] = lv_label_create(x_axis_cont);
+        lv_label_set_text(trend_x_labels[i], "--:--");
+        lv_obj_set_style_text_color(trend_x_labels[i], lv_color_hex(0xAAAAAA), 0);
+        lv_obj_set_style_text_font(trend_x_labels[i], &lv_font_montserrat_16, 0);
+    }
 
     // Toggle: Live vs 24h
     lv_obj_t * sw_mode = lv_switch_create(trending_screen);
@@ -1266,7 +1334,7 @@ static void create_settings_screen(void) {
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
     // Use macro for version
-    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "0.6.3"); 
+    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "0.7.0"); 
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);

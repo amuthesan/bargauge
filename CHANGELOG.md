@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.7.0] - 2025-12-15
+### Added
+- **Trending Graph Labels**:
+    - **Y-Axis**: Added dedicated labels showing the exact Min and Max values of the gauge range.
+    - **X-Axis**: Added timestamp labels below the graph indicating "Now" and historical offsets (-6h, -12h, -18h, -24h).
+    - **Dynamic Updates**: Labels update automatically relative to the current system time.
+- **UI Enhancement**: Improved graph readability by replacing incompatible axis ticks with custom-aligned label objects.
+
 ## [v0.6.3] - 2025-12-15
 ### Added
 - **24-Hour Trending Graph**: Implemented a historical trending graph for all 16 gauges, displaying data over the last 24 hours.
