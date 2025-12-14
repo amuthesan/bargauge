@@ -436,6 +436,7 @@ typedef struct {
     int threshold;    // Future use
     int analog_min;   // Raw Analog Input Min (e.g. 4000)
     int analog_max;   // Raw Analog Input Max (e.g. 20000)
+    int trigger_relay_index; // 0: None, 1-16: Relay to trigger on alarm (Independent)
 } GasGaugeConfig;
 
 typedef struct {
@@ -538,6 +539,10 @@ void save_gauge_configs(void) {
         // Added in v0.4.2
         snprintf(key, sizeof(key), "g_%d_thr", i);
         nvs_set_i32(my_handle, key, gauge_configs[i].threshold);
+
+        // Added in v0.5.6 (Independent Trigger)
+        snprintf(key, sizeof(key), "g_%d_trig", i);
+        nvs_set_i32(my_handle, key, gauge_configs[i].trigger_relay_index);
     }
     
     nvs_set_blob(my_handle, "safety_cfg", &safety_config, sizeof(safety_config)); // Save Safety Config
@@ -560,6 +565,7 @@ void load_gauge_configs(void) {
         gauge_configs[i].threshold = 0; // Default off
         gauge_configs[i].analog_min = 4000;
         gauge_configs[i].analog_max = 20000;
+        gauge_configs[i].trigger_relay_index = 0; // Default None
     }
     // Safety Defaults
     safety_config.siren_relay_index = 0; 
@@ -610,6 +616,11 @@ void load_gauge_configs(void) {
 
         snprintf(key, sizeof(key), "g_%d_thr", i);
         nvs_get_i32(my_handle, key, (int32_t*)&gauge_configs[i].threshold);
+
+        snprintf(key, sizeof(key), "g_%d_trig", i);
+        if(nvs_get_i32(my_handle, key, (int32_t*)&gauge_configs[i].trigger_relay_index) != ESP_OK) {
+             gauge_configs[i].trigger_relay_index = 0; // Default None
+        }
     }
     
     // Load Safety Config (Blob logic might be tricky if structure changes, rely on individual if possible, but blob is fine if struct is stable)
@@ -647,6 +658,7 @@ static lv_obj_t * ta_yellow = NULL;
 static lv_obj_t * ta_analog_min = NULL;
 static lv_obj_t * ta_analog_max = NULL;
 static lv_obj_t * ta_threshold = NULL;
+static lv_obj_t * dd_trigger = NULL; // Dropdown for Independent Trigger
 
 static lv_obj_t * sys_wifi_label = NULL;
 static lv_obj_t * sys_ip_label = NULL;
@@ -1040,7 +1052,16 @@ static void dd_event_cb(lv_event_t * e) {
 
         snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].threshold);
         lv_textarea_set_text(ta_threshold, buf);
+        
+        if(dd_trigger) {
+             lv_dropdown_set_selected(dd_trigger, gauge_configs[current_edit_index].trigger_relay_index);
+        }
     }
+}
+
+static void trigger_dd_cb(lv_event_t * e) {
+    lv_obj_t * dd = lv_event_get_target(e);
+    gauge_configs[current_edit_index].trigger_relay_index = lv_dropdown_get_selected(dd);
 }
 
 static void siren_dd_cb(lv_event_t * e) {
@@ -1125,6 +1146,19 @@ static void create_settings_screen(void) {
     snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].threshold);
     ta_threshold = create_config_row(tab1, "Threshold", buf, 16, 0);
 
+    // Trigger Relay Dropdown
+    lv_obj_t * lbl_trig = lv_label_create(tab1);
+    lv_label_set_text(lbl_trig, "Trigger Relay (Independent):");
+    lv_obj_set_style_text_color(lbl_trig, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_margin_top(lbl_trig, 10, 0);
+    
+    dd_trigger = lv_dropdown_create(tab1);
+    lv_dropdown_set_options(dd_trigger, "None\nRelay 1\nRelay 2\nRelay 3\nRelay 4\nRelay 5\nRelay 6\nRelay 7\nRelay 8\n"
+                                        "Relay 9\nRelay 10\nRelay 11\nRelay 12\nRelay 13\nRelay 14\nRelay 15\nRelay 16");
+    lv_dropdown_set_selected(dd_trigger, gauge_configs[current_edit_index].trigger_relay_index);
+    lv_obj_add_event_cb(dd_trigger, trigger_dd_cb, LV_EVENT_ALL, NULL);
+    lv_obj_set_width(dd_trigger, 200);
+
     // --- Tab 2: System Info ---
     lv_obj_t * tab2 = lv_tabview_add_tab(tabview, "System Info");
     lv_obj_set_flex_flow(tab2, LV_FLEX_FLOW_COLUMN);
@@ -1133,7 +1167,7 @@ static void create_settings_screen(void) {
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
     // Use macro for version
-    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "0.5.5"); 
+    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "0.6.0"); 
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
@@ -1485,7 +1519,7 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
             }
         }
     }
-
+    
     // --- Safety / Master Warning Logic ---
     static int last_siren_state = -1; 
     static int last_strobe_state = -1;
@@ -1590,36 +1624,96 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
     }
 
     // Siren Logic
-    // Logic: Active if Alarm AND Not Acknowledged
+    // --- Relay Logic Implementation ---
+    // We calculate the desired state for ALL relays managed by alarms (Siren, Strobe, Gauge Triggers).
+    // We then update them diff-intelligently.
+
+    bool relay_targets[16] = {false};
+    bool relay_managed[16] = {false}; // Track which relays are controlled by this logic
+
+    // 1. Independent Gauge Triggers
+    for(int i=0; i<16; i++) {
+        // Only if gauge active and alarm active (red_active logic from above loop?)
+        // I need to know if THIS gauge is in alarm.
+        // The check was loop-local above. I should record it or re-check.
+        // Re-checking is cheap.
+        if (gauge_active_mask & (1 << i)) {
+             long val_check = sys_modbus_data.analog_vals[i];
+             // Scale if needed or check raw? using raw for now as per previous logic assumptions or consistency.
+             int t_idx = gauge_configs[i].trigger_relay_index;
+             if (t_idx > 0 && t_idx <= 16) {
+                 relay_managed[t_idx-1] = true;
+                 
+                 // Re-evaluate alarm condition for this gauge
+                 bool is_alarm = false;
+                 // Assuming Red Limit Logic
+                 long out_min = gauge_configs[i].min_val;
+                 long out_max = gauge_configs[i].max_val;
+                 // Need normalized value?
+                 // The red_limit is in user units.
+                 // Let's use the loop above to store alarm state?
+                 // Or easier: Just re-calculate normalized value
+                 float norm_val = (float)sys_modbus_data.analog_vals[i];
+                  long in_min = gauge_configs[i].analog_min;
+                  long in_max = gauge_configs[i].analog_max;
+                  if ((in_max - in_min) != 0) {
+                       norm_val = (float)((sys_modbus_data.analog_vals[i] - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
+                  }
+                  
+                  
+                  if (norm_val >= gauge_configs[i].threshold) { 
+                      relay_targets[t_idx-1] = true;
+                  }
+             }
+        }
+    }
+
+    // 2. Siren Logic
     bool target_siren = any_alarm_active && !alarm_acknowledged;
     if (safety_config.siren_invert) target_siren = !target_siren;
     
     if (safety_config.siren_relay_index > 0) {
         int r_idx = safety_config.siren_relay_index - 1;
-        if (last_siren_state != (int)target_siren) {
-            esp_err_t err = modbus_set_relay(r_idx, target_siren);
-             if (err == ESP_OK) {
-                last_siren_state = (int)target_siren;
-                ESP_LOGI(TAG, "Siren Relay %d Set to %d", r_idx+1, target_siren);
-             }
-        }
+        relay_managed[r_idx] = true;
+        relay_targets[r_idx] = target_siren; // Overwrite gauge trigger if conflict (Priority: Siren)
     }
 
-    // Strobe Logic
-    // Logic: Active if Alarm (Acknowledge does NOT stop strobe)
-    bool target_strobe = any_alarm_active;
+    // 3. Strobe Logic
+    bool target_strobe = any_alarm_active; // Ack doesn't stop strobe
     if (safety_config.strobe_invert) target_strobe = !target_strobe;
-    
+
     if (safety_config.strobe_relay_index > 0) {
         int r_idx = safety_config.strobe_relay_index - 1;
-        if (last_strobe_state != (int)target_strobe) {
-            esp_err_t err = modbus_set_relay(r_idx, target_strobe);
-             if (err == ESP_OK) {
-                last_strobe_state = (int)target_strobe;
-                ESP_LOGI(TAG, "Strobe Relay %d Set to %d", r_idx+1, target_strobe);
-             }
+        relay_managed[r_idx] = true;
+        relay_targets[r_idx] = target_strobe; // Overwrite gauge trigger if conflict (Priority: Strobe)
+    }
+
+    // 4. Apply Changes
+    static bool last_managed_state[16] = {false};
+    static bool initialized_relays = false;
+    
+    // Invert output logic not applied here? 
+    // Wait, Siren/Strobe have specialized invert flags. 
+    // Gauge Triggers do NOT have invert flags in the UI. Assuming Active HIGH (ON).
+    
+    for(int i=0; i<16; i++) {
+        if (relay_managed[i]) {
+            // Check if changed or force update periodically?
+            // Let's check against sys_modbus_data.relays (current status) to be robust against manual toggles?
+            // Or strictly enforce our target?
+            // "Calculated target" vs "Last written target".
+            // Let's strictly enforce if it differs from our INTENDED state.
+            
+            if (!initialized_relays || last_managed_state[i] != relay_targets[i]) {
+                 esp_err_t err = modbus_set_relay(i, relay_targets[i]);
+                 if(err == ESP_OK) {
+                     last_managed_state[i] = relay_targets[i];
+                     ESP_LOGD(TAG, "Managed Relay %d set to %d", i+1, relay_targets[i]);
+                 }
+            }
         }
     }
+    initialized_relays = true;
     
     // Update Chart (Specific to Trending Page)
     if (const_chart && trending_screen && lv_scr_act() == trending_screen) {
