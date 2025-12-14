@@ -1266,7 +1266,7 @@ static void create_settings_screen(void) {
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
     // Use macro for version
-    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "0.6.2"); 
+    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "0.6.3"); 
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
