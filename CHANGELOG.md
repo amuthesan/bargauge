@@ -1,6 +1,6 @@
 # Changelog
 
-## [v0.8.0] - 2025-12-15
+## [v1.0.1] - 2025-12-16
 ### Added
 - **Calibration Setup**:
     - Implemented PIN protection (Default: `8888`).

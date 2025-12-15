@@ -1986,7 +1986,6 @@ static lv_obj_t * pin_ta = NULL;
 static lv_obj_t * history_table = NULL;
 static void create_pin_screen(void); // Forward declaration
 
-static lv_obj_t * service_screen = NULL;
 static lv_obj_t * dd_day;
 static lv_obj_t * dd_month;
 static lv_obj_t * dd_year;
@@ -2197,18 +2196,7 @@ static void create_service_screen(void) {
         }
     }
 
-    // Keyboard (at bottom, spanning full width)
-    service_kb = lv_keyboard_create(service_screen);
-    lv_keyboard_set_mode(service_kb, LV_KEYBOARD_MODE_NUMBER);
-    lv_obj_set_size(service_kb, 800, 160); // Smaller height
-    lv_obj_align(service_kb, LV_ALIGN_BOTTOM_MID, 0, 0);
-    
-    // Events
-    lv_keyboard_set_textarea(service_kb, ta_day);
-    lv_obj_add_state(ta_day, LV_STATE_FOCUSED);
-    lv_obj_add_event_cb(ta_day, ta_event_cb, LV_EVENT_CLICKED, NULL);
-    lv_obj_add_event_cb(ta_month, ta_event_cb, LV_EVENT_CLICKED, NULL);
-    lv_obj_add_event_cb(ta_year, ta_event_cb, LV_EVENT_CLICKED, NULL);
+// Keyboard removed as dropdowns are used
 }
 
 static void reminder_ack_cb(lv_event_t * e) {
