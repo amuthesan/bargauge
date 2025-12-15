@@ -26,4 +26,25 @@ typedef struct {
     bool strobe_invert;     // false: Active=ON, true: Active=OFF
 } SafetyConfig;
 
+typedef struct {
+    // Calibration parameters
+    uint16_t cal_year;
+    uint8_t  cal_month; // 1-12
+    uint8_t  cal_day;   // 1-31
+    
+    // 0: 6 months, 1: 1 year
+    uint8_t  expiry_period; 
+    
+    // Acknowledgement tracking
+    uint16_t last_ack_year;
+    uint8_t  last_ack_month;
+    uint8_t  last_ack_day;
+
+    // History (Last 6 Calibrations)
+    // Index 0 is the most recent (previous) calibration
+    uint16_t history_year[6];
+    uint8_t  history_month[6];
+    uint8_t  history_day[6];
+} ServiceConfig;
+
 #endif // GAUGE_CONFIG_H

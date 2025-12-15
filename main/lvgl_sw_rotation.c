@@ -430,6 +430,7 @@ static esp_err_t bsp_display_backlight_on(void)
 
 static GasGaugeConfig gauge_configs[16];
 static SafetyConfig safety_config; // Global Instance
+static ServiceConfig service_config; // Global Service Config
 
 static void mqtt_timer_cb(lv_timer_t * t) {
     float values[16];
@@ -478,6 +479,10 @@ static lv_obj_t * btn_prev = NULL;
 // Warning Page Objects
 static lv_obj_t * warning_screen = NULL;
 static lv_obj_t * last_active_screen = NULL; // To return after Ack
+
+// Service Page Objects
+static lv_obj_t * service_screen = NULL;
+static lv_obj_t * reminder_screen = NULL;
 
 // --- Global State ---
 static uint16_t gauge_active_mask = 0xFFFF; // Bitmask for active gauges (Default: All On)
@@ -528,9 +533,11 @@ void save_gauge_configs(void) {
     }
     
     nvs_set_blob(my_handle, "safety_cfg", &safety_config, sizeof(safety_config)); // Save Safety Config
+    nvs_set_blob(my_handle, "srv_cfg", &service_config, sizeof(service_config)); // Save Service Config
+    
     nvs_commit(my_handle);
     nvs_close(my_handle);
-    ESP_LOGI(TAG, "Gauge & Safety Configs Saved to NVS");
+    ESP_LOGI(TAG, "Gauge & Safety & Service Configs Saved to NVS");
 }
 
 // Load Configs from NVS
@@ -554,6 +561,13 @@ void load_gauge_configs(void) {
     safety_config.siren_invert = false;
     safety_config.strobe_relay_index = 0; 
     safety_config.strobe_invert = false;
+    
+    // Service Defaults
+    service_config.cal_year = 2024;
+    service_config.cal_month = 1;
+    service_config.cal_day = 1;
+    service_config.expiry_period = 1; // Default 1 Year
+    service_config.last_ack_year = 0;
 
     nvs_handle_t my_handle;
     esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
@@ -607,11 +621,14 @@ void load_gauge_configs(void) {
     
     // Load Safety Config (Blob logic might be tricky if structure changes, rely on individual if possible, but blob is fine if struct is stable)
     // Previous code used blob for safety_cfg.
-    size_t safety_size = sizeof(safety_config);
-    nvs_get_blob(my_handle, "safety_cfg", &safety_config, &safety_size);
+    size_t required_size = sizeof(safety_config);
+    nvs_get_blob(my_handle, "safety_cfg", &safety_config, &required_size);
+    
+    required_size = sizeof(service_config);
+    nvs_get_blob(my_handle, "srv_cfg", &service_config, &required_size);
 
     nvs_close(my_handle);
-    ESP_LOGI(TAG, "Configs Loaded from NVS");
+    ESP_LOGI(TAG, "Gauge Configs Loaded.");
 }
 
 // Forward declarations
@@ -619,6 +636,9 @@ static lv_obj_t * create_gas_widget(lv_obj_t *parent, int index);
 static void create_trending_screen(void);
 static void create_settings_screen(void);
 static void create_main_screen(void);
+// static void create_splash_screen(void); // Removed
+static void create_service_screen(void);
+static void create_reminder_screen(void);
 static void next_page_cb(lv_event_t * e);
 static void prev_page_cb(lv_event_t * e);
 static void back_from_trending_cb(lv_event_t * e);
@@ -1959,6 +1979,284 @@ static void prev_page_cb(lv_event_t * e) {
     }
 }
 
+// --- Service Screen & Logic ---
+
+static lv_obj_t * pin_screen = NULL;
+static lv_obj_t * pin_ta = NULL;
+static lv_obj_t * history_table = NULL;
+static void create_pin_screen(void); // Forward declaration
+
+static lv_obj_t * service_screen = NULL;
+static lv_obj_t * dd_day;
+static lv_obj_t * dd_month;
+static lv_obj_t * dd_year;
+static lv_obj_t * expiry_dd;
+static lv_obj_t * service_kb; // Shared Keyboard (now only for PIN potentially, or removed if not needed for service screen specifically)
+
+// --- PIN Logic ---
+static void pin_kb_event_cb(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if(code == LV_EVENT_READY) { // Enter Key pressed
+        const char * txt = lv_textarea_get_text(pin_ta);
+        if (strcmp(txt, "8888") == 0) {
+            // Success
+            lv_textarea_set_text(pin_ta, "");
+            create_service_screen();
+            lv_scr_load(service_screen);
+        } else {
+            // Fail
+            lv_textarea_set_text(pin_ta, "");
+        }
+    } else if (code == LV_EVENT_CANCEL) {
+        lv_textarea_set_text(pin_ta, "");
+        lv_scr_load(main_screen);
+    }
+}
+
+static void create_pin_screen(void) {
+    if (pin_screen) lv_obj_del(pin_screen);
+    pin_screen = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(pin_screen, lv_color_hex(0x000000), 0);
+    
+    lv_obj_t * title = lv_label_create(pin_screen);
+    lv_label_set_text(title, "ENTER TECHNICIAN PIN");
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 40);
+    
+    pin_ta = lv_textarea_create(pin_screen);
+    lv_textarea_set_password_mode(pin_ta, true);
+    lv_textarea_set_one_line(pin_ta, true);
+    lv_textarea_set_max_length(pin_ta, 8);
+    lv_obj_set_width(pin_ta, 200);
+    lv_obj_align(pin_ta, LV_ALIGN_TOP_MID, 0, 90);
+    
+    lv_obj_t * kb = lv_keyboard_create(pin_screen);
+    lv_keyboard_set_mode(kb, LV_KEYBOARD_MODE_NUMBER);
+    lv_keyboard_set_textarea(kb, pin_ta);
+    lv_obj_add_event_cb(kb, pin_kb_event_cb, LV_EVENT_ALL, NULL);
+}
+
+// --- Updated Service Screen ---
+
+// --- Updated Service Screen ---
+static void service_back_cb(lv_event_t * e) {
+    // Save Values from Dropdowns
+    // IDs are 0-indexed
+    int d = lv_dropdown_get_selected(dd_day) + 1;     // 0 -> 1, 30 -> 31
+    int m = lv_dropdown_get_selected(dd_month) + 1;   // 0 -> 1, 11 -> 12
+    int y = lv_dropdown_get_selected(dd_year) + 2025; // 0 -> 2025
+    
+    // Basic Validation (Implicitly accurate range via dropdowns)
+    if (d > 0 && d <= 31 && m > 0 && m <= 12 && y >= 2025 && y <= 2035) {
+        // Update History: Shift down
+        for(int i=5; i>0; i--) {
+            service_config.history_year[i] = service_config.history_year[i-1];
+            service_config.history_month[i] = service_config.history_month[i-1];
+            service_config.history_day[i] = service_config.history_day[i-1];
+        }
+        // Insert new at top
+        service_config.history_year[0] = y;
+        service_config.history_month[0] = m;
+        service_config.history_day[0] = d;
+
+        service_config.cal_year = y;
+        service_config.cal_month = m;
+        service_config.cal_day = d;
+    }
+    
+    service_config.expiry_period = lv_dropdown_get_selected(expiry_dd);
+    
+    save_gauge_configs(); // Save to NVS
+    
+    lv_scr_load(main_screen);
+}
+
+static void create_service_screen(void) {
+    if (service_screen) lv_obj_del(service_screen);
+    service_screen = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(service_screen, lv_color_hex(0x101010), 0); // Dark Gray
+    
+    // -- Left Panel: Input --
+    lv_obj_t * panel_left = lv_obj_create(service_screen);
+    lv_obj_set_size(panel_left, 400, 300);
+    lv_obj_align(panel_left, LV_ALIGN_TOP_LEFT, 20, 20);
+    lv_obj_set_style_bg_color(panel_left, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_border_color(panel_left, lv_color_hex(0x404040), 0);
+    
+    lv_obj_t * title = lv_label_create(panel_left);
+    lv_label_set_text(title, "CALIBRATION SETUP");
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(title, lv_color_hex(0x00D0FF), 0); // Cyan
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 0);
+
+    // Inputs
+    int y_offset = 60;
+    
+    // Day
+    lv_obj_t * lbl_d = lv_label_create(panel_left);
+    lv_label_set_text(lbl_d, "Day");
+    lv_obj_align(lbl_d, LV_ALIGN_TOP_LEFT, 20, y_offset);
+    
+    dd_day = lv_dropdown_create(panel_left);
+    static char day_opts[128] = "";
+    if(day_opts[0] == 0) {
+        for(int i=1; i<=31; i++) {
+            char tmp[4];
+            snprintf(tmp, sizeof(tmp), "%d\n", i);
+            strcat(day_opts, tmp);
+        }
+        // Remove trailing newline
+        day_opts[strlen(day_opts)-1] = 0;
+    }
+    lv_dropdown_set_options(dd_day, day_opts);
+    lv_obj_set_width(dd_day, 70);
+    lv_obj_align(dd_day, LV_ALIGN_TOP_LEFT, 20, y_offset + 30);
+    if(service_config.cal_day >= 1 && service_config.cal_day <= 31)
+        lv_dropdown_set_selected(dd_day, service_config.cal_day - 1);
+
+    // Month
+    lv_obj_t * lbl_m = lv_label_create(panel_left);
+    lv_label_set_text(lbl_m, "Month");
+    lv_obj_align(lbl_m, LV_ALIGN_TOP_LEFT, 110, y_offset);
+    
+    dd_month = lv_dropdown_create(panel_left);
+    lv_dropdown_set_options(dd_month, "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12");
+    lv_obj_set_width(dd_month, 70);
+    lv_obj_align(dd_month, LV_ALIGN_TOP_LEFT, 110, y_offset + 30);
+    if(service_config.cal_month >= 1 && service_config.cal_month <= 12)
+        lv_dropdown_set_selected(dd_month, service_config.cal_month - 1);
+    
+    // Year
+    lv_obj_t * lbl_y = lv_label_create(panel_left);
+    lv_label_set_text(lbl_y, "Year");
+    lv_obj_align(lbl_y, LV_ALIGN_TOP_LEFT, 200, y_offset);
+    
+    dd_year = lv_dropdown_create(panel_left);
+    // 2025 to 2035
+    lv_dropdown_set_options(dd_year, "2025\n2026\n2027\n2028\n2029\n2030\n2031\n2032\n2033\n2034\n2035");
+    lv_obj_set_width(dd_year, 100);
+    lv_obj_align(dd_year, LV_ALIGN_TOP_LEFT, 200, y_offset + 30);
+    if(service_config.cal_year >= 2025 && service_config.cal_year <= 2035)
+        lv_dropdown_set_selected(dd_year, service_config.cal_year - 2025);
+
+    // Expiry
+    lv_obj_t * lbl_exp = lv_label_create(panel_left);
+    lv_label_set_text(lbl_exp, "Expiry:");
+    lv_obj_align(lbl_exp, LV_ALIGN_TOP_LEFT, 20, y_offset + 90);
+    
+    expiry_dd = lv_dropdown_create(panel_left);
+    lv_dropdown_set_options(expiry_dd, "6 Months\n1 Year");
+    lv_dropdown_set_selected(expiry_dd, service_config.expiry_period);
+    lv_obj_set_width(expiry_dd, 150);
+    lv_obj_align(expiry_dd, LV_ALIGN_TOP_LEFT, 20, y_offset + 120);
+
+    // Save Button
+    lv_obj_t * btn_save = lv_btn_create(panel_left);
+    lv_obj_set_size(btn_save, 140, 50);
+    lv_obj_align(btn_save, LV_ALIGN_BOTTOM_LEFT, 20, -20);
+    lv_obj_add_event_cb(btn_save, service_back_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_t * lbl_save = lv_label_create(btn_save);
+    lv_label_set_text(lbl_save, "SAVE & EXIT");
+    lv_obj_center(lbl_save);
+    
+    // -- Right Panel: History Table --
+    lv_obj_t * panel_right = lv_obj_create(service_screen);
+    lv_obj_set_size(panel_right, 340, 300);
+    lv_obj_align(panel_right, LV_ALIGN_TOP_RIGHT, -20, 20);
+    lv_obj_set_style_bg_color(panel_right, lv_color_hex(0x000000), 0);
+    
+    lv_obj_t * hist_title = lv_label_create(panel_right);
+    lv_label_set_text(hist_title, "HISTORY");
+    lv_obj_set_style_text_font(hist_title, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(hist_title, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_align(hist_title, LV_ALIGN_TOP_MID, 0, 0);
+    
+    history_table = lv_table_create(panel_right);
+    lv_obj_set_size(history_table, 300, 220);
+    lv_obj_align(history_table, LV_ALIGN_TOP_MID, 0, 40);
+    lv_table_set_col_cnt(history_table, 2);
+    lv_table_set_col_width(history_table, 0, 60); // No.
+    lv_table_set_col_width(history_table, 1, 200); // Date
+    
+    lv_table_set_cell_value(history_table, 0, 0, "#");
+    lv_table_set_cell_value(history_table, 0, 1, "Date");
+    
+    for(int i=0; i<6; i++) {
+        char num_str[4];
+        snprintf(num_str, sizeof(num_str), "%d", i+1);
+        lv_table_set_cell_value(history_table, i+1, 0, num_str);
+        
+        if (service_config.history_year[i] > 2000) {
+            char date_str[32];
+            snprintf(date_str, sizeof(date_str), "%02d/%02d/%d", 
+                service_config.history_day[i], service_config.history_month[i], service_config.history_year[i]);
+            lv_table_set_cell_value(history_table, i+1, 1, date_str);
+        } else {
+            lv_table_set_cell_value(history_table, i+1, 1, "-");
+        }
+    }
+
+    // Keyboard (at bottom, spanning full width)
+    service_kb = lv_keyboard_create(service_screen);
+    lv_keyboard_set_mode(service_kb, LV_KEYBOARD_MODE_NUMBER);
+    lv_obj_set_size(service_kb, 800, 160); // Smaller height
+    lv_obj_align(service_kb, LV_ALIGN_BOTTOM_MID, 0, 0);
+    
+    // Events
+    lv_keyboard_set_textarea(service_kb, ta_day);
+    lv_obj_add_state(ta_day, LV_STATE_FOCUSED);
+    lv_obj_add_event_cb(ta_day, ta_event_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ta_month, ta_event_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ta_year, ta_event_cb, LV_EVENT_CLICKED, NULL);
+}
+
+static void reminder_ack_cb(lv_event_t * e) {
+    // Acknowledge
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    
+    service_config.last_ack_year = timeinfo.tm_year + 1900;
+    service_config.last_ack_month = timeinfo.tm_mon + 1;
+    service_config.last_ack_day = timeinfo.tm_mday;
+    
+    save_gauge_configs();
+    
+    if (last_active_screen) lv_scr_load(last_active_screen);
+    else lv_scr_load(main_screen);
+}
+
+static void create_reminder_screen(void) {
+    if (reminder_screen) lv_obj_del(reminder_screen);
+    reminder_screen = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(reminder_screen, lv_color_hex(0x200000), 0); // Dark Red Tint
+    
+    lv_obj_t * title = lv_label_create(reminder_screen);
+    lv_label_set_text(title, "SERVICE REMINDER");
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0); // Downgraded from 48
+    lv_obj_set_style_text_color(title, lv_color_hex(0xFF0000), 0);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 50);
+    
+    lv_obj_t * msg = lv_label_create(reminder_screen);
+    lv_label_set_text(msg, "Please contact:\n\nExentec Services Malaysia Sdn Bhd\n\n03-55422288 / 016-9704099");
+    lv_obj_set_style_text_font(msg, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_align(msg, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(msg, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_center(msg);
+    
+    lv_obj_t * btn = lv_btn_create(reminder_screen);
+    lv_obj_set_size(btn, 200, 60);
+    lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -50);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0x404040), 0);
+    lv_obj_add_event_cb(btn, reminder_ack_cb, LV_EVENT_CLICKED, NULL);
+    
+    lv_obj_t * lbl = lv_label_create(btn);
+    lv_label_set_text(lbl, "ACKNOWLEDGE");
+    lv_obj_center(lbl);
+}
+
 static void update_time_timer_cb(lv_timer_t * timer) {
     time_t now;
     struct tm timeinfo;
@@ -1967,6 +2265,41 @@ static void update_time_timer_cb(lv_timer_t * timer) {
 
     if (time_label) {
         lv_label_set_text_fmt(time_label, "%02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+    }
+    
+    // --- Service Reminder Logic (Once per Second Check is fine, barely any load) ---
+    // Only check if time is valid (year > 2000)
+    if ((timeinfo.tm_year + 1900) > 2000) {
+        // Calculate Expiry Date
+        struct tm expiry_tm = {0};
+        expiry_tm.tm_year = service_config.cal_year - 1900;
+        expiry_tm.tm_mon = service_config.cal_month - 1;
+        expiry_tm.tm_mday = service_config.cal_day;
+        
+        // Add duration
+        if (service_config.expiry_period == 0) expiry_tm.tm_mon += 6; // 6 Months
+        else expiry_tm.tm_year += 1; // 1 Year
+        
+        // Normalize
+        time_t expiry_time = mktime(&expiry_tm);
+        
+        // Diff: expiry - now
+        double diff_seconds = difftime(expiry_time, now);
+        
+        // 7 days in seconds = 7 * 24 * 3600 = 604800
+        if (diff_seconds <= 604800 && diff_seconds >= -864000) { // Warn if within 7 days or overdue (up to 10 days? forever? let's say forever until re-calibrated)
+             // Check if already acked TODAY
+             bool acked_today = (service_config.last_ack_year == (timeinfo.tm_year + 1900) && 
+                                 service_config.last_ack_month == (timeinfo.tm_mon + 1) && 
+                                 service_config.last_ack_day == timeinfo.tm_mday);
+                                 
+             if (!acked_today && lv_scr_act() != reminder_screen) {
+                 // Trigger Reminder
+                 last_active_screen = lv_scr_act();
+                 create_reminder_screen();
+                 lv_scr_load(reminder_screen);
+             }
+        }
     }
     
     // --- 1-Minute Trend Update ---
@@ -2023,6 +2356,11 @@ static void update_time_timer_cb(lv_timer_t * timer) {
             lv_obj_set_style_text_color(sys_mqtt_label, lv_color_hex(0xFF0000), 0);
         }
     }
+}
+
+static void service_btn_event_cb(lv_event_t * e) {
+    create_pin_screen();
+    lv_scr_load(pin_screen);
 }
 
 static void create_main_screen(void) {
@@ -2160,6 +2498,18 @@ static void create_main_screen(void) {
         
 
         // --- BUTTONS & OVERLAYS (Must be created LAST for Z-Order) ---
+
+        // Service Button (Bottom Left)
+        // Service Button (Bottom Left)
+        lv_obj_t * service_btn = lv_btn_create(main_screen);
+        lv_obj_set_size(service_btn, 40, 40); 
+        lv_obj_align(service_btn, LV_ALIGN_BOTTOM_LEFT, 10, -10);
+        lv_obj_add_event_cb(service_btn, service_btn_event_cb, LV_EVENT_CLICKED, (void*)0); 
+        
+        lv_obj_t * service_lbl = lv_label_create(service_btn);
+        lv_label_set_text(service_lbl, LV_SYMBOL_EDIT); 
+        lv_obj_set_style_text_color(service_lbl, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_center(service_lbl);
 
         // Settings Button (Bottom Right)
         lv_obj_t * settings_btn = lv_btn_create(main_screen);
