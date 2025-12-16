@@ -2408,13 +2408,22 @@ static void create_main_screen(void) {
         lv_obj_align_to(wifi_status_icon, time_label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
         
         // Modbus Status Label (Top Center)
+        // Create Title Header
+        lv_obj_t * title_header = lv_label_create(main_screen);
+        lv_label_set_text(title_header, "SF6 GAS LEAK MONITORING (WAFER PROBE 1)");
+        lv_obj_set_style_text_font(title_header, &lv_font_montserrat_24, 0); // Large Font
+        lv_obj_set_style_text_color(title_header, lv_color_hex(0x000000), 0); // Black
+        lv_obj_align(title_header, LV_ALIGN_TOP_MID, 0, 10); // Top Center
+
+        // Modbus Status Label (Moved to Bottom)
         mb_status_label = lv_label_create(main_screen);
         if(mb_status_label) ESP_LOGI(TAG, "mb_status_label created: %p", mb_status_label);
         else ESP_LOGE(TAG, "Failed to create mb_status_label");
-
-        lv_label_set_text(mb_status_label, "MB: INIT"); // Init with text to be visible
+        
+        lv_label_set_text(mb_status_label, "MB: INIT"); 
         lv_obj_set_style_text_font(mb_status_label, &lv_font_montserrat_20, 0);
-        lv_obj_align(mb_status_label, LV_ALIGN_TOP_MID, 0, 10);
+        lv_obj_set_style_text_color(mb_status_label, lv_color_hex(0xAAAAAA), 0);
+        lv_obj_align(mb_status_label, LV_ALIGN_BOTTOM_MID, 0, -10); // Bottom Center
 
 
         // --- Grid Layout ---

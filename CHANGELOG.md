@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.0.3] - 2025-12-16
+### Added
+- **Dashboard Layout**:
+    - Added bold, black Title Header "SF6 GAS LEAK MONITORING (WAFER PROBE 1)" to the top of the main screen.
+    - Moved Modbus Status indicator to the bottom of the screen.
+
 ## [v1.0.2] - 2025-12-16
 ### Added
 - **Gauge Status Labels**:
