@@ -61,9 +61,9 @@ extern const lv_image_dsc_t logo_img;
 
 static const char *TAG = "BarGauge";
 
-// WiFi credentials
-#define WIFI_SSID      "AKR Home"
-#define WIFI_PASSWORD  "brandy78755862"
+// WiFi credentials (Global buffers with defaults)
+char wifi_ssid[33] = "AKR Home";
+char wifi_pass[65] = "brandy78755862";
 
 // WiFi status
 static bool wifi_connected = false;
@@ -634,6 +634,39 @@ void load_gauge_configs(void) {
     ESP_LOGI(TAG, "Gauge Configs Loaded.");
 }
 
+// Save WiFi Credentials to NVS
+void save_wifi_creds(const char* ssid, const char* pass) {
+    nvs_handle_t my_handle;
+    esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
+        return;
+    }
+    nvs_set_str(my_handle, "wifi_ssid", ssid);
+    nvs_set_str(my_handle, "wifi_pass", pass);
+    nvs_commit(my_handle);
+    nvs_close(my_handle);
+    ESP_LOGI(TAG, "WiFi Credentials Saved: %s", ssid);
+}
+
+// Load WiFi Credentials from NVS
+void load_wifi_creds(void) {
+    nvs_handle_t my_handle;
+    esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
+    if (err != ESP_OK) return;
+    
+    size_t required_size = sizeof(wifi_ssid);
+    if(nvs_get_str(my_handle, "wifi_ssid", wifi_ssid, &required_size) == ESP_OK) {
+         ESP_LOGI(TAG, "Loaded SSID from NVS: %s", wifi_ssid);
+    }
+    
+    required_size = sizeof(wifi_pass);
+    if(nvs_get_str(my_handle, "wifi_pass", wifi_pass, &required_size) == ESP_OK) {
+         ESP_LOGI(TAG, "Loaded Password from NVS");
+    }
+    nvs_close(my_handle);
+}
+
 // Forward declarations
 static lv_obj_t * create_gas_widget(lv_obj_t *parent, int index);
 static void create_reminder_screen(bool is_preview);
@@ -893,6 +926,11 @@ static lv_obj_t * dd_trigger = NULL; // Dropdown for Independent Trigger
 static lv_obj_t * sys_wifi_label = NULL;
 static lv_obj_t * sys_ip_label = NULL;
 static lv_obj_t * sys_mqtt_label = NULL; // MQTT Status
+
+// WiFi Config UI Handles
+static lv_obj_t * ta_ssid = NULL;
+static lv_obj_t * ta_pass = NULL;
+static lv_obj_t * lbl_wifi_status = NULL; // On Tab 5
 
 
 // --- Activation Checkbox Callback ---
@@ -1273,6 +1311,51 @@ static void strobe_sw_cb(lv_event_t * e) {
     safety_config.strobe_invert = lv_obj_has_state(sw, LV_STATE_CHECKED);
 }
 
+// --- WiFi Callbacks ---
+static void wifi_connect_btn_cb(lv_event_t * e) {
+    const char * ssid = lv_textarea_get_text(ta_ssid);
+    const char * pass = lv_textarea_get_text(ta_pass);
+    
+    // Update Text to User
+    if (lbl_wifi_status) {
+        lv_label_set_text(lbl_wifi_status, "Status: Connecting...");
+        lv_obj_set_style_text_color(lbl_wifi_status, lv_color_hex(0xFFFF00), 0); // Yellow
+    }
+
+    // Save to NVS
+    save_wifi_creds(ssid, pass);
+    
+    // Update Runtime Config
+    strncpy(wifi_ssid, ssid, sizeof(wifi_ssid));
+    strncpy(wifi_pass, pass, sizeof(wifi_pass));
+    
+    wifi_config_t wifi_config = {0};
+    strncpy((char*)wifi_config.sta.ssid, wifi_ssid, sizeof(wifi_config.sta.ssid));
+    strncpy((char*)wifi_config.sta.password, wifi_pass, sizeof(wifi_config.sta.password));
+    
+    // Reconnect
+    esp_wifi_disconnect();
+    esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+    esp_wifi_connect();
+}
+
+static void wifi_ta_event_cb(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * ta = lv_event_get_target(e);
+    if(code == LV_EVENT_CLICKED || code == LV_EVENT_FOCUSED) {
+        if(kb) {
+            lv_keyboard_set_textarea(kb, ta);
+            lv_obj_clear_flag(kb, LV_OBJ_FLAG_HIDDEN);
+            lv_keyboard_set_mode(kb, LV_KEYBOARD_MODE_TEXT_LOWER); // Default to text
+        }
+    } else if(code == LV_EVENT_DEFOCUSED) {
+        if(kb) {
+            lv_keyboard_set_textarea(kb, NULL);
+            lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+}
+
 static void create_settings_screen(void) {
     settings_screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(settings_screen, lv_color_hex(0x000000), 0);
@@ -1359,7 +1442,7 @@ static void create_settings_screen(void) {
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
     // Use macro for version
-    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "0.7.0"); 
+    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "2.0.0"); 
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
@@ -1468,6 +1551,53 @@ static void create_settings_screen(void) {
         lv_obj_add_event_cb(cb, activation_checkbox_cb, LV_EVENT_VALUE_CHANGED, (void*)(intptr_t)i);
     }
 
+    // --- Tab 5: WiFi Setup ---
+    lv_obj_t * tab5 = lv_tabview_add_tab(tabview, "WiFi Setup");
+    lv_obj_set_flex_flow(tab5, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(tab5, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_top(tab5, 30, 0);
+
+    // SSID Input
+    lv_obj_t * lbl_ssid = lv_label_create(tab5);
+    lv_label_set_text(lbl_ssid, "WiFi SSID:");
+    lv_obj_set_style_text_color(lbl_ssid, lv_color_hex(0xFFFFFF), 0);
+    
+    ta_ssid = lv_textarea_create(tab5);
+    lv_textarea_set_one_line(ta_ssid, true);
+    lv_textarea_set_text(ta_ssid, wifi_ssid);
+    lv_obj_set_width(ta_ssid, 300);
+    lv_obj_add_event_cb(ta_ssid, wifi_ta_event_cb, LV_EVENT_ALL, NULL);
+    lv_obj_set_style_margin_bottom(ta_ssid, 20, 0);
+
+    // Password Input
+    lv_obj_t * lbl_pass = lv_label_create(tab5);
+    lv_label_set_text(lbl_pass, "Password:");
+    lv_obj_set_style_text_color(lbl_pass, lv_color_hex(0xFFFFFF), 0);
+    
+    ta_pass = lv_textarea_create(tab5);
+    lv_textarea_set_one_line(ta_pass, true);
+    lv_textarea_set_password_mode(ta_pass, true); // Hidden
+    lv_textarea_set_text(ta_pass, wifi_pass);
+    lv_obj_set_width(ta_pass, 300);
+    lv_obj_add_event_cb(ta_pass, wifi_ta_event_cb, LV_EVENT_ALL, NULL);
+    lv_obj_set_style_margin_bottom(ta_pass, 20, 0);
+
+    // Connect Button
+    lv_obj_t * btn_connect = lv_btn_create(tab5);
+    lv_obj_set_size(btn_connect, 150, 50);
+    lv_obj_add_event_cb(btn_connect, wifi_connect_btn_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_set_style_bg_color(btn_connect, lv_color_hex(0x00AA00), 0); // Green
+    
+    lv_obj_t * lbl_btn = lv_label_create(btn_connect);
+    lv_label_set_text(lbl_btn, "Connect");
+    lv_obj_center(lbl_btn);
+    
+    // Status Label
+    lbl_wifi_status = lv_label_create(tab5);
+    lv_label_set_text(lbl_wifi_status, "Status: Idle");
+    lv_obj_set_style_text_color(lbl_wifi_status, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_set_style_margin_top(lbl_wifi_status, 20, 0);
+
     // 2. Back Button (Bottom Fixed)
     lv_obj_t * btn = lv_btn_create(settings_screen);
     lv_obj_set_size(btn, 200, 60);
@@ -1547,7 +1677,7 @@ static lv_obj_t* create_gas_widget(lv_obj_t *parent, int index) {
     lv_obj_t * title_lbl = lv_label_create(container);
     lv_label_set_text(title_lbl, gauge_configs[index].name); 
     lv_obj_set_style_text_font(title_lbl, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(title_lbl, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_set_style_text_color(title_lbl, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(title_lbl, LV_ALIGN_TOP_MID, 0, 10); // Very top
     
     gauge_title_labels[index] = title_lbl;
@@ -1556,7 +1686,7 @@ static lv_obj_t* create_gas_widget(lv_obj_t *parent, int index) {
     lv_obj_t * unit_lbl = lv_label_create(container);
     lv_label_set_text(unit_lbl, gauge_configs[index].unit); 
     lv_obj_set_style_text_font(unit_lbl, &lv_font_montserrat_12, 0); 
-    lv_obj_set_style_text_color(unit_lbl, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_set_style_text_color(unit_lbl, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align_to(unit_lbl, val_lbl, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
     
     gauge_unit_labels[index] = unit_lbl;
@@ -2385,6 +2515,17 @@ static void update_time_timer_cb(lv_timer_t * timer) {
         }
     }
     
+    // Update Tab 5 Status Label
+    if (lbl_wifi_status && lv_obj_is_valid(lbl_wifi_status)) {
+        if (wifi_connected) {
+            lv_label_set_text_fmt(lbl_wifi_status, "Status: Connected (%s)", system_ip_str);
+            lv_obj_set_style_text_color(lbl_wifi_status, lv_color_hex(0x00FF00), 0);
+        } else {
+            lv_label_set_text(lbl_wifi_status, "Status: Disconnected");
+            lv_obj_set_style_text_color(lbl_wifi_status, lv_color_hex(0xFF0000), 0);
+        }
+    }
+    
     if (sys_ip_label && lv_obj_is_valid(sys_ip_label)) {
         lv_label_set_text_fmt(sys_ip_label, "IP Address: %s", system_ip_str);
     }
@@ -2412,15 +2553,15 @@ static void service_btn_event_cb(lv_event_t * e) {
 static void create_main_screen(void) {
     if(lvgl_port_lock(-1)) {
         main_screen = lv_obj_create(NULL);
-        // Set screen background to White (Bright Theme)
-        lv_obj_set_style_bg_color(main_screen, lv_color_hex(0xFFFFFF), 0);
+        // Set screen background to Dark Grey (Dark Theme)
+        lv_obj_set_style_bg_color(main_screen, lv_color_hex(0x202020), 0);
         
         // Time Label (Top Right)
         // Time Label (Moved to Top Left to make room for Logo)
         time_label = lv_label_create(main_screen);
         lv_label_set_text(time_label, "--:--:--");
         lv_obj_set_style_text_font(time_label, &lv_font_montserrat_20, 0);
-        lv_obj_set_style_text_color(time_label, lv_color_hex(0x000000), 0);
+        lv_obj_set_style_text_color(time_label, lv_color_hex(0xFFFFFF), 0);
         lv_obj_align(time_label, LV_ALIGN_TOP_LEFT, 20, 10); 
 
         // Modbus Init
@@ -2436,7 +2577,7 @@ static void create_main_screen(void) {
         // WiFi Icon (Right of Time)
         wifi_status_icon = lv_label_create(main_screen);
         lv_label_set_text(wifi_status_icon, LV_SYMBOL_WIFI); 
-        lv_obj_set_style_text_color(wifi_status_icon, lv_color_hex(0x000000), 0);
+        lv_obj_set_style_text_color(wifi_status_icon, lv_color_hex(0xFFFFFF), 0);
         lv_obj_align_to(wifi_status_icon, time_label, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
         
         // Modbus Status Label (Top Center)
@@ -2444,8 +2585,8 @@ static void create_main_screen(void) {
         lv_obj_t * title_header = lv_label_create(main_screen);
         lv_label_set_text(title_header, "SF6 GAS LEAK MONITORING (WAFER PROBE 1)");
         lv_obj_set_style_text_font(title_header, &lv_font_montserrat_36, 0); // Bold/Large
-        lv_obj_set_style_text_color(title_header, lv_color_hex(0x000000), 0); // Black
-        lv_obj_set_style_text_color(title_header, lv_color_hex(0x000000), 0); // Black
+        lv_obj_set_style_text_color(title_header, lv_color_hex(0xFFFFFF), 0); // White
+        lv_obj_set_style_text_color(title_header, lv_color_hex(0xFFFFFF), 0); // White
         lv_obj_align(title_header, LV_ALIGN_TOP_MID, 0, 10); // Top Center
 
         // Add Dashboard Icon (Top Right)
@@ -2649,6 +2790,10 @@ void app_main(void)
     
     // Init Trending (mounts SPIFFS, allocates PSRAM)
     trend_manager_init();
+
+    // Load WiFi Creds (After NVS init)
+    load_wifi_creds();
+
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
@@ -2656,13 +2801,12 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL));
 
+    // msg_print_all_logs(); // Removed: Invalid function
+
     // Configure WiFi
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = WIFI_SSID,
-            .password = WIFI_PASSWORD,
-        },
-    };
+    wifi_config_t wifi_config = {0};
+    strncpy((char*)wifi_config.sta.ssid, wifi_ssid, sizeof(wifi_config.sta.ssid));
+    strncpy((char*)wifi_config.sta.password, wifi_pass, sizeof(wifi_config.sta.password));
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
