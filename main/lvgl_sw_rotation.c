@@ -1442,7 +1442,7 @@ static void create_settings_screen(void) {
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
     // Use macro for version
-    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "2.0.0"); 
+    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "2.0.1"); 
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
@@ -1750,6 +1750,9 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
                      val = (int)((raw_val - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
                 }
 
+                // Final Safety Clamp (Moved here to affect UI)
+                if (val < 0) val = 0;
+
                 // --- Activation Logic (UI) ---
                 if (!(gauge_active_mask & (1 << i))) {
                     // Gauge Inactive
@@ -1841,9 +1844,14 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
         long out_max = gauge_configs[i].max_val;
         
         int val = raw_val; 
+        
+        // Restore Scaling Logic for Loop 2
         if ((in_max - in_min) != 0) {
              val = (int)((raw_val - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
         }
+        
+        // Final Safety Clamp
+        if (val < 0) val = 0;
 
         // Update UI only for visible gauges
         if (gauge_arcs[i] && gauge_labels[i]) {
