@@ -2,9 +2,15 @@
 
 ## [v1.0.3] - 2025-12-16
 ### Added
-- **Dashboard Layout**:
-    - Added bold, black Title Header "SF6 GAS LEAK MONITORING (WAFER PROBE 1)" to the top of the main screen.
-    - Moved Modbus Status indicator to the bottom of the screen.
+- **Dashboard Layout**: Moved "MB: Status" to bottom. Added Title Header.
+
+## [v1.0.4] - 2025-12-16
+### Added
+- **Dashboard Icon**: Added high-resolution Unisem logo (ARGB8888 transparent) to the top-right corner.
+- **UI Layout**: Moved Time and WiFi status to the top-left to accommodate the new logo.
+## [v1.0.6] - 2025-12-16
+### Fixed
+- **UI Spacing**: Increased spacing between Time Label and WiFi Icon in the dashboard header to prevent overlapping.
 
 ## [v1.0.2] - 2025-12-16
 ### Added

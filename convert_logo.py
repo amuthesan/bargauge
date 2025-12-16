@@ -1,102 +1,76 @@
-
+from PIL import Image
 import sys
 import os
-try:
-    from PIL import Image
-except ImportError:
-    print("Pillow not installed. Installing...")
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "Pillow"])
-    from PIL import Image
 
-def main():
-    input_path = "asset/logo.png"
-    output_path = "main/logo_img.c"
-    
-    if not os.path.exists(input_path):
-        print(f"Error: {input_path} not found.")
-        return
-
-    img = Image.open(input_path)
-    print(f"Original size: {img.size}")
-
-    # Resize to 70% of 800px width = 560px
-    target_width = 560
-    w_percent = (target_width / float(img.size[0]))
-    target_height = int((float(img.size[1]) * float(w_percent)))
-    
-    img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
-    print(f"Resized to: {img.size}")
-    
-    # Ensure RGB
-    img = img.convert("RGB")
-
-    # Generate C Array
-    with open(output_path, "w") as f:
-        f.write("#include \"lvgl.h\"\n\n")
-        f.write("#ifndef LV_ATTRIBUTE_MEM_ALIGN\n")
-        f.write("#define LV_ATTRIBUTE_MEM_ALIGN\n")
-        f.write("#endif\n\n")
+def convert_to_c_array(input_path, output_path, target_height=60):
+    try:
+        img = Image.open(input_path)
         
-        f.write(f"#ifndef LV_ATTRIBUTE_IMG_LOGO_IMG\n")
-        f.write(f"#define LV_ATTRIBUTE_IMG_LOGO_IMG\n")
-        f.write(f"#endif\n\n")
-
-        f.write("const LV_ATTRIBUTE_MEM_ALIGN uint8_t logo_img_map[] = {\n")
+        # Calculate new width maintaining aspect ratio
+        aspect_ratio = img.width / img.height
+        new_width = int(target_height * aspect_ratio)
         
-        data = img.getdata()
+        img = img.resize((new_width, target_height), Image.Resampling.LANCZOS)
         
-        # Header (LVGL Image Header)
-        # We will use LV_IMG_CF_TRUE_COLOR (RGB565 equivalent usually)
-        # Actually LVGL v8/v9 defines specific headers.
-        # But `lv_img_dsc_t` expects a pointer to data.
-        # The data format depends on CF.
-        # CF_TRUE_COLOR in LVGL typically means native color format.
-        # For ESP32 with 16-bit color, it's usually RGB565.
+        # Convert to RGB565
+        # LVGL RGB565 is 16-bit: RRRR RGGG GGGB BBBB
+        # But we need bytes. Little Endian usually? Or Big?
+        # LV_COLOR_16_SWAP might be needed.
+        # Standard: Byte 0: GGG BB BBB, Byte 1: RRR RR GGG
         
-        # Let's convert to RGB565 manually to be safe and platform independent-ish
-        # RGB565: RRRRRGGG GGGBBBBB
-        
-        line_buffer = ""
-        count = 0
-        for r, g, b in data:
-            # RGB888 -> RGB565
-            val = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
-            # Little Endian for ESP32/LVGL usually? 
-            # LVGL usually wants bytes: Low, High or High, Low?
-            # It depends on LV_COLOR_16_SWAP.
-            # Assuming standard:
-            low_byte = val & 0xFF
-            high_byte = (val >> 8) & 0xFF
+        if img.mode != 'RGBA':
+            img = img.convert('RGBA')
             
-            # Note: If LV_COLOR_16_SWAP is 1, bytes are swapped. 
-            # Most SPI displays use big endian or swapped.
-            # Let's write them as 2 bytes.
-            # Usually strict standard is Little Endian for raw arrays if directly mapped?
-            # Let's try standard Little Endian: Low, High.
-            
-            line_buffer += f"0x{low_byte:02x}, 0x{high_byte:02x}, "
-            count += 1
-            if count % 16 == 0:
-                f.write("    " + line_buffer + "\n")
-                line_buffer = ""
+        print(f"Converting image: {new_width}x{target_height} (ARGB8888)")
         
-        if line_buffer:
-            f.write("    " + line_buffer + "\n")
+        c_array = []
+        for y in range(target_height):
+            for x in range(new_width):
+                r, g, b, a = img.getpixel((x, y))
+                
+                # LVGL ARGB8888 typically expects: Blue, Green, Red, Alpha (Little Endian uint32)
+                # But as a byte array: [B, G, R, A]
+                
+                c_array.append(b)
+                c_array.append(g)
+                c_array.append(r)
+                c_array.append(a)
+                
+        # Generate C File
+        with open(output_path, 'w') as f:
+            f.write('#include "lvgl.h"\n\n')
+            f.write('#ifndef LV_ATTRIBUTE_MEM_ALIGN\n#define LV_ATTRIBUTE_MEM_ALIGN\n#endif\n\n')
             
-        f.write("};\n\n")
+            f.write('const LV_ATTRIBUTE_MEM_ALIGN uint8_t logo_img_map[] = {\n')
+            
+            # Write data in chunks
+            for i in range(0, len(c_array), 16):
+                chunk = c_array[i:i+16]
+                line = "    " + ", ".join([f"0x{b:02x}" for b in chunk]) + ","
+                f.write(line + "\n")
+                
+            f.write('};\n\n')
+            
+            f.write('const lv_image_dsc_t logo_img = {\n')
+            f.write('  .header.magic = LV_IMAGE_HEADER_MAGIC,\n')
+            f.write('  .header.cf = LV_COLOR_FORMAT_ARGB8888,\n') # Updated Format
+            f.write('  .header.flags = 0,\n')
+            f.write(f'  .header.w = {new_width},\n')
+            f.write(f'  .header.h = {target_height},\n')
+            f.write(f'  .header.stride = {new_width * 4},\n') # 4 Bytes per pixel
+            f.write('  .data_size = sizeof(logo_img_map),\n')
+            f.write('  .data = logo_img_map,\n')
+            f.write('};\n')
+            
+        print(f"Successfully generated {output_path}")
         
-        # LVGL v9 Image Descriptor
-        f.write("const lv_image_dsc_t logo_img = {\n")
-        f.write("  .header.magic = LV_IMAGE_HEADER_MAGIC,\n")
-        f.write("  .header.cf = LV_COLOR_FORMAT_RGB565,\n")
-        f.write("  .header.flags = 0,\n")
-        f.write(f"  .header.w = {img.size[0]},\n")
-        f.write(f"  .header.h = {img.size[1]},\n")
-        f.write(f"  .header.stride = {img.size[0] * 2},\n")
-        f.write("  .data_size = sizeof(logo_img_map),\n")
-        f.write("  .data = logo_img_map,\n")
-        f.write("};\n")
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    convert_to_c_array(
+        "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/asset/unisem_hi_res.png",
+        "/Users/amuthesan/Documents/Antigravity/ESP32 HMI Unit/BarGauge/main/logo_img.c",
+        target_height=60 # Increased height slightly for better quality
+    )

@@ -56,6 +56,7 @@ esp_err_t esp_lcd_touch_new_i2c_gsl3680(esp_lcd_panel_io_handle_t io, const esp_
 #include <stdlib.h>
 
 LV_FONT_DECLARE(lv_font_montserrat_48);
+extern const lv_image_dsc_t logo_img;
 
 static const char *TAG = "BarGauge";
 
@@ -2385,11 +2386,12 @@ static void create_main_screen(void) {
         lv_obj_set_style_bg_color(main_screen, lv_color_hex(0xFFFFFF), 0);
         
         // Time Label (Top Right)
+        // Time Label (Moved to Top Left to make room for Logo)
         time_label = lv_label_create(main_screen);
         lv_label_set_text(time_label, "--:--:--");
         lv_obj_set_style_text_font(time_label, &lv_font_montserrat_20, 0);
         lv_obj_set_style_text_color(time_label, lv_color_hex(0x000000), 0);
-        lv_obj_align(time_label, LV_ALIGN_TOP_RIGHT, -50, 10); // Shift left for wifi icon
+        lv_obj_align(time_label, LV_ALIGN_TOP_LEFT, 20, 10); 
 
         // Modbus Init
         ESP_LOGI(TAG, "Initializing Modbus Master...");
@@ -2405,7 +2407,7 @@ static void create_main_screen(void) {
         wifi_status_icon = lv_label_create(main_screen);
         lv_label_set_text(wifi_status_icon, LV_SYMBOL_WIFI); 
         lv_obj_set_style_text_color(wifi_status_icon, lv_color_hex(0x000000), 0);
-        lv_obj_align_to(wifi_status_icon, time_label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
+        lv_obj_align_to(wifi_status_icon, time_label, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
         
         // Modbus Status Label (Top Center)
         // Create Title Header
@@ -2413,7 +2415,13 @@ static void create_main_screen(void) {
         lv_label_set_text(title_header, "SF6 GAS LEAK MONITORING (WAFER PROBE 1)");
         lv_obj_set_style_text_font(title_header, &lv_font_montserrat_24, 0); // Large Font
         lv_obj_set_style_text_color(title_header, lv_color_hex(0x000000), 0); // Black
+        lv_obj_set_style_text_color(title_header, lv_color_hex(0x000000), 0); // Black
         lv_obj_align(title_header, LV_ALIGN_TOP_MID, 0, 10); // Top Center
+
+        // Add Dashboard Icon (Top Right)
+        lv_obj_t * icon_img = lv_image_create(main_screen);
+        lv_image_set_src(icon_img, &logo_img);
+        lv_obj_align(icon_img, LV_ALIGN_TOP_RIGHT, -20, 5); // Top Right with padding
 
         // Modbus Status Label (Moved to Bottom)
         mb_status_label = lv_label_create(main_screen);
