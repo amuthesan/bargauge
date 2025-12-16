@@ -491,6 +491,7 @@ static lv_obj_t * reminder_screen = NULL;
 static uint16_t gauge_active_mask = 0xFFFF; // Bitmask for active gauges (Default: All On)
 
 // Save Configs to NVS
+// Save Configs to NVS
 void save_gauge_configs(void) {
     nvs_handle_t my_handle;
     esp_err_t err = nvs_open("storage", NVS_READWRITE, &my_handle);
@@ -498,41 +499,11 @@ void save_gauge_configs(void) {
 
     nvs_set_u16(my_handle, "gauge_mask", gauge_active_mask); // Save Active Mask
 
-    // Save individual configs (Implementation details omitted for brevity in diff, ensuring existence)
+    // Save each gauge config as a BLOB
     for(int i=0; i<16; i++) {
         char key[16];
-        snprintf(key, sizeof(key), "g_%d_name", i);
-        nvs_set_str(my_handle, key, gauge_configs[i].name);
-        
-        snprintf(key, sizeof(key), "g_%d_unit", i);
-        nvs_set_str(my_handle, key, gauge_configs[i].unit);
-        
-        snprintf(key, sizeof(key), "g_%d_min", i);
-        nvs_set_i32(my_handle, key, gauge_configs[i].min_val);
-        
-        snprintf(key, sizeof(key), "g_%d_max", i);
-        nvs_set_i32(my_handle, key, gauge_configs[i].max_val);
-        
-        snprintf(key, sizeof(key), "g_%d_blue", i);
-        nvs_set_i32(my_handle, key, gauge_configs[i].blue_limit);
-        
-        snprintf(key, sizeof(key), "g_%d_yel", i);
-        nvs_set_i32(my_handle, key, gauge_configs[i].yellow_limit);
-
-        // Added in v0.5.1
-        snprintf(key, sizeof(key), "g_%d_amin", i);
-        nvs_set_i32(my_handle, key, gauge_configs[i].analog_min);
-        
-        snprintf(key, sizeof(key), "g_%d_amax", i);
-        nvs_set_i32(my_handle, key, gauge_configs[i].analog_max);
-
-        // Added in v0.4.2
-        snprintf(key, sizeof(key), "g_%d_thr", i);
-        nvs_set_i32(my_handle, key, gauge_configs[i].threshold);
-
-        // Added in v0.5.6 (Independent Trigger)
-        snprintf(key, sizeof(key), "g_%d_trig", i);
-        nvs_set_i32(my_handle, key, gauge_configs[i].trigger_relay_index);
+        snprintf(key, sizeof(key), "g_blob_%d", i);
+        nvs_set_blob(my_handle, key, &gauge_configs[i], sizeof(GasGaugeConfig));
     }
     
     nvs_set_blob(my_handle, "safety_cfg", &safety_config, sizeof(safety_config)); // Save Safety Config
@@ -540,7 +511,7 @@ void save_gauge_configs(void) {
     
     nvs_commit(my_handle);
     nvs_close(my_handle);
-    ESP_LOGI(TAG, "Gauge & Safety & Service Configs Saved to NVS");
+    ESP_LOGI(TAG, "Gauge & Safety & Service Configs Saved to NVS (BLOB Format)");
 }
 
 // Load Configs from NVS
@@ -585,45 +556,21 @@ void load_gauge_configs(void) {
         gauge_active_mask = mask_val;
     }
 
+    // Load Blobs
     for(int i=0; i<16; i++) {
         char key[16];
-        size_t len = sizeof(gauge_configs[i].name);
-        snprintf(key, sizeof(key), "g_%d_name", i);
-        nvs_get_str(my_handle, key, gauge_configs[i].name, &len);
+        snprintf(key, sizeof(key), "g_blob_%d", i);
+        size_t required_size = sizeof(GasGaugeConfig);
+        err = nvs_get_blob(my_handle, key, &gauge_configs[i], &required_size);
         
-        len = sizeof(gauge_configs[i].unit);
-        snprintf(key, sizeof(key), "g_%d_unit", i);
-        nvs_get_str(my_handle, key, gauge_configs[i].unit, &len);
-        
-        snprintf(key, sizeof(key), "g_%d_min", i);
-        nvs_get_i32(my_handle, key, (int32_t*)&gauge_configs[i].min_val);
-        
-        snprintf(key, sizeof(key), "g_%d_max", i);
-        nvs_get_i32(my_handle, key, (int32_t*)&gauge_configs[i].max_val);
-        
-        snprintf(key, sizeof(key), "g_%d_blue", i);
-        nvs_get_i32(my_handle, key, (int32_t*)&gauge_configs[i].blue_limit);
-        
-        snprintf(key, sizeof(key), "g_%d_yel", i);
-        nvs_get_i32(my_handle, key, (int32_t*)&gauge_configs[i].yellow_limit);
-
-        snprintf(key, sizeof(key), "g_%d_amin", i);
-        nvs_get_i32(my_handle, key, (int32_t*)&gauge_configs[i].analog_min);
-
-        snprintf(key, sizeof(key), "g_%d_amax", i);
-        nvs_get_i32(my_handle, key, (int32_t*)&gauge_configs[i].analog_max);
-
-        snprintf(key, sizeof(key), "g_%d_thr", i);
-        nvs_get_i32(my_handle, key, (int32_t*)&gauge_configs[i].threshold);
-
-        snprintf(key, sizeof(key), "g_%d_trig", i);
-        if(nvs_get_i32(my_handle, key, (int32_t*)&gauge_configs[i].trigger_relay_index) != ESP_OK) {
-             gauge_configs[i].trigger_relay_index = 0; // Default None
+        if (err == ESP_OK) {
+            ESP_LOGD(TAG, "Loaded Blob for Gauge %d", i);
+        } else {
+             ESP_LOGD(TAG, "Gauge %d Not Found (Using Defaults)", i);
         }
     }
     
-    // Load Safety Config (Blob logic might be tricky if structure changes, rely on individual if possible, but blob is fine if struct is stable)
-    // Previous code used blob for safety_cfg.
+    // Load Safety Config
     size_t required_size = sizeof(safety_config);
     nvs_get_blob(my_handle, "safety_cfg", &safety_config, &required_size);
     
@@ -631,7 +578,7 @@ void load_gauge_configs(void) {
     nvs_get_blob(my_handle, "srv_cfg", &service_config, &required_size);
 
     nvs_close(my_handle);
-    ESP_LOGI(TAG, "Gauge Configs Loaded.");
+    ESP_LOGI(TAG, "Gauge Configs Loaded (BLOB Format).");
 }
 
 // Save WiFi Credentials to NVS
@@ -981,7 +928,7 @@ static void back_from_settings_cb(lv_event_t * e) {
         }
         
         // Save to NVS
-        save_gauge_configs();
+        // save_gauge_configs(); // REMOVED: Manual Save Only now
         
         lv_scr_load_anim(main_screen, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 500, 0, false);
     }
@@ -1161,7 +1108,7 @@ static void kb_event_cb(lv_event_t * e) {
 // --- Value Update Handlers ---
 static void name_ta_cb(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_VALUE_CHANGED) {
+    if (code == LV_EVENT_VALUE_CHANGED || code == LV_EVENT_DEFOCUSED) {
         lv_obj_t * ta = lv_event_get_target(e);
         const char * txt = lv_textarea_get_text(ta);
         snprintf(gauge_configs[current_edit_index].name, sizeof(gauge_configs[current_edit_index].name), "%s", txt);
@@ -1171,7 +1118,7 @@ static void name_ta_cb(lv_event_t * e) {
 
 static void unit_ta_cb(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_VALUE_CHANGED) {
+    if (code == LV_EVENT_VALUE_CHANGED || code == LV_EVENT_DEFOCUSED) {
         lv_obj_t * ta = lv_event_get_target(e);
         const char * txt = lv_textarea_get_text(ta);
         snprintf(gauge_configs[current_edit_index].unit, sizeof(gauge_configs[current_edit_index].unit), "%s", txt);
@@ -1181,7 +1128,7 @@ static void unit_ta_cb(lv_event_t * e) {
 
 static void int_val_ta_cb(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_VALUE_CHANGED) {
+    if (code == LV_EVENT_VALUE_CHANGED || code == LV_EVENT_DEFOCUSED) {
         lv_obj_t * ta = lv_event_get_target(e);
         int field_id = (int)lv_event_get_user_data(e);
         const char * txt = lv_textarea_get_text(ta);
@@ -1312,6 +1259,20 @@ static void strobe_sw_cb(lv_event_t * e) {
 }
 
 // --- WiFi Callbacks ---
+static void save_config_btn_cb(lv_event_t * e) {
+    lv_obj_t * btn = lv_event_get_target(e);
+    lv_obj_t * label = lv_obj_get_child(btn, 0);
+    
+    // Trigger Save
+    save_gauge_configs(); // Saves ALL configs to NVS
+    
+    // Visual Feedback
+    lv_label_set_text(label, "SAVED!");
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0x00AA00), 0); // Green
+    
+    // Revert after delay? Or just leave it. Leaving it is fine until clicked again or screen reload.
+}
+
 static void wifi_connect_btn_cb(lv_event_t * e) {
     const char * ssid = lv_textarea_get_text(ta_ssid);
     const char * pass = lv_textarea_get_text(ta_pass);
@@ -1357,6 +1318,9 @@ static void wifi_ta_event_cb(lv_event_t * e) {
 }
 
 static void create_settings_screen(void) {
+    // Force Load from NVS to discard any unsaved RAM changes
+    load_gauge_configs();
+    
     settings_screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(settings_screen, lv_color_hex(0x000000), 0);
     lv_obj_set_layout(settings_screen, 0); // Disable flex to allow custom placement if needed, or keeping it clean
@@ -1385,6 +1349,19 @@ static void create_settings_screen(void) {
     lv_obj_set_flex_flow(tab1, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(tab1, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_top(tab1, 20, 0);
+
+    // Save Button
+    lv_obj_t * btn_save = lv_btn_create(tab1);
+    lv_obj_set_size(btn_save, 200, 50);
+    lv_obj_add_event_cb(btn_save, save_config_btn_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_set_style_bg_color(btn_save, lv_color_hex(0x00AA00), 0); // Green
+    
+    lv_obj_t * lbl_save = lv_label_create(btn_save);
+    lv_label_set_text(lbl_save, "SAVE CONFIG");
+    lv_obj_set_style_text_font(lbl_save, &lv_font_montserrat_20, 0);
+    lv_obj_center(lbl_save);
+    
+    // Dropdown to Select Gauge
 
     // Dropdown to Select Gauge
     lv_obj_t * dd = lv_dropdown_create(tab1);
@@ -1442,7 +1419,7 @@ static void create_settings_screen(void) {
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
     // Use macro for version
-    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "2.0.1"); 
+    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "2.0.3"); 
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
