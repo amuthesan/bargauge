@@ -8,7 +8,7 @@
 ### Added
 - **Dashboard Icon**: Added high-resolution Unisem logo (ARGB8888 transparent) to the top-right corner.
 - **UI Layout**: Moved Time and WiFi status to the top-left to accommodate the new logo.
-## [v1.0.5] - 2025-12-16
+## [v1.0.7] - 2025-12-16
 ### Added
 - **Service Page Redesign**:
     - Full-screen layout for "Calibration Setup" (Removed panels).
