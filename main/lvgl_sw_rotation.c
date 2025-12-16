@@ -55,6 +55,7 @@ esp_err_t esp_lcd_touch_new_i2c_gsl3680(esp_lcd_panel_io_handle_t io, const esp_
 #include <math.h>
 #include <stdlib.h>
 
+LV_FONT_DECLARE(lv_font_montserrat_36);
 LV_FONT_DECLARE(lv_font_montserrat_48);
 extern const lv_image_dsc_t logo_img;
 
@@ -2442,7 +2443,7 @@ static void create_main_screen(void) {
         // Create Title Header
         lv_obj_t * title_header = lv_label_create(main_screen);
         lv_label_set_text(title_header, "SF6 GAS LEAK MONITORING (WAFER PROBE 1)");
-        lv_obj_set_style_text_font(title_header, &lv_font_montserrat_24, 0); // Large Font
+        lv_obj_set_style_text_font(title_header, &lv_font_montserrat_36, 0); // Bold/Large
         lv_obj_set_style_text_color(title_header, lv_color_hex(0x000000), 0); // Black
         lv_obj_set_style_text_color(title_header, lv_color_hex(0x000000), 0); // Black
         lv_obj_align(title_header, LV_ALIGN_TOP_MID, 0, 10); // Top Center

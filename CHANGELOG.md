@@ -8,6 +8,11 @@
 ### Added
 - **Dashboard Icon**: Added high-resolution Unisem logo (ARGB8888 transparent) to the top-right corner.
 - **UI Layout**: Moved Time and WiFi status to the top-left to accommodate the new logo.
+## [v1.0.8] - 2025-12-16
+### Changed
+- **UI**: Updated Dashboard Title Font to **Montserrat 36 Bold** (was default, effectively larger/bolder but not 48).
+- **System**: Moved LVGL component to local `components/` to support custom font configuration.
+
 ## [v1.0.7] - 2025-12-16
 ### Added
 - **Service Page Redesign**:
