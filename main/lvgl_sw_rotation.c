@@ -897,13 +897,108 @@ static void activation_checkbox_cb(lv_event_t * e) {
     ESP_LOGI(TAG, "Gauge %d Activation Changed: %d. Mask: 0x%04X", (int)idx + 1, active, gauge_active_mask);
 }
 
+// --- Authorization Screen ---
+static lv_obj_t * auth_screen = NULL;
+static lv_obj_t * auth_ta = NULL;
+static const char * PIN_CODE = "8888";
+
+static void create_settings_screen(void); // Forward Declaration
+
+static void auth_cancel_cb(lv_event_t * e) {
+    if(auth_screen) {
+        lv_obj_del(auth_screen);
+        auth_screen = NULL;
+    }
+}
+
+static void auth_enter_cb(lv_event_t * e) {
+    const char * txt = lv_textarea_get_text(auth_ta);
+    if(strcmp(txt, PIN_CODE) == 0) {
+        // Correct PIN
+        if(auth_screen) {
+            lv_obj_del(auth_screen);
+            auth_screen = NULL;
+        }
+        
+        // Go to Settings
+        if (settings_screen == NULL) {
+            create_settings_screen();
+        }
+        lv_scr_load_anim(settings_screen, LV_SCR_LOAD_ANIM_MOVE_TOP, 500, 0, false);
+        
+    } else {
+        // Invalid PIN
+        lv_textarea_set_text(auth_ta, "");
+        lv_obj_t * lbl_err = lv_obj_get_child(auth_screen, 2); // Assuming label is child 2
+        // Or cleaner: make it a global or find it. Simple approach: create error label dynamically or just flash standard label
+        // Let's create a red visual feedback
+        lv_obj_set_style_border_color(auth_ta, lv_color_hex(0xFF0000), 0);
+        lv_obj_set_style_border_width(auth_ta, 3, 0);
+    }
+}
+
+static void create_auth_screen(void) {
+    if(auth_screen) return; // Already exists
+
+    // Modal Background
+    auth_screen = lv_obj_create(lv_scr_act()); // Create on current screen
+    lv_obj_set_size(auth_screen, 400, 300);
+    lv_obj_center(auth_screen);
+    lv_obj_set_style_bg_color(auth_screen, lv_color_hex(0x202020), 0);
+    lv_obj_set_style_border_color(auth_screen, lv_color_hex(0xFFFFFF), 0);
+    
+    // Label ("Enter PIN")
+    lv_obj_t * lbl = lv_label_create(auth_screen);
+    lv_label_set_text(lbl, "ENTER PIN");
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(lbl, LV_ALIGN_TOP_MID, 0, 10);
+    
+    // Text Area
+    auth_ta = lv_textarea_create(auth_screen);
+    lv_textarea_set_one_line(auth_ta, true);
+    lv_textarea_set_password_mode(auth_ta, true);
+    lv_textarea_set_max_length(auth_ta, 6);
+    lv_obj_set_width(auth_ta, 150);
+    lv_obj_align(auth_ta, LV_ALIGN_TOP_MID, 0, 50);
+    
+    // Keyboard
+    lv_obj_t * auth_kb = lv_keyboard_create(auth_screen);
+    lv_keyboard_set_mode(auth_kb, LV_KEYBOARD_MODE_NUMBER);
+    lv_keyboard_set_textarea(auth_kb, auth_ta);
+    lv_obj_set_size(auth_kb, 350, 150);
+    lv_obj_align(auth_kb, LV_ALIGN_BOTTOM_MID, 0, -10);
+    
+    // Special cancel button in corner? Or rely on KB Cancel?
+    // Let's add a visible Cancel button top right
+    lv_obj_t * btn_close = lv_btn_create(auth_screen);
+    lv_obj_set_size(btn_close, 30, 30);
+    lv_obj_align(btn_close, LV_ALIGN_TOP_RIGHT, 0, 0);
+    lv_obj_set_style_bg_color(btn_close, lv_color_hex(0xFF0000), 0);
+    lv_obj_add_event_cb(btn_close, auth_cancel_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_t * lbl_x = lv_label_create(btn_close);
+    lv_label_set_text(lbl_x, "X");
+    lv_obj_center(lbl_x);
+    
+    // Add event to KB for Enter/Cancel
+    // Actually KB events auto-handle some, but we need custom Enter logic or add check to TA values
+    lv_obj_add_event_cb(auth_kb, auth_enter_cb, LV_EVENT_READY, NULL);
+    lv_obj_add_event_cb(auth_kb, auth_cancel_cb, LV_EVENT_CANCEL, NULL);
+}
+
 void settings_btn_event_cb(lv_event_t * e) {
     // Get the index of the gauge that triggered this event
     current_edit_index = (int)lv_event_get_user_data(e);
+    
+    // Call Auth Screen instead of Settings directly
+    create_auth_screen();
+    
+    /* Removed: Moved to auth_enter_cb
     if (settings_screen == NULL) {
         create_settings_screen();
     }
     lv_scr_load_anim(settings_screen, LV_SCR_LOAD_ANIM_MOVE_TOP, 500, 0, false);
+    */
 }
 
 static void back_from_trending_cb(lv_event_t * e) {
@@ -1419,7 +1514,7 @@ static void create_settings_screen(void) {
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
     // Use macro for version
-    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "2.0.3"); 
+    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "2.10.0"); 
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
