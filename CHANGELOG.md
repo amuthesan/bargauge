@@ -1,5 +1,12 @@
 # Changelog
 
+## [v1.0.2] - 2025-12-16
+### Added
+- **Gauge Status Labels**:
+    - Added "SAFE" (Green) / "WARNING" (Red) status box above Trending button.
+    - Status updates dynamically based on configured threshold.
+    - Large customizable font and box styling.
+
 ## [v1.0.1] - 2025-12-16
 ### Added
 - **Calibration Setup**:

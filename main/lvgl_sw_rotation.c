@@ -458,6 +458,7 @@ static lv_obj_t * gauge_arcs[16] = {NULL};
 static lv_obj_t * gauge_labels[16] = {NULL}; // Digital Value
 static lv_obj_t * gauge_title_labels[16] = {NULL};
 static lv_obj_t * gauge_unit_labels[16] = {NULL};
+static lv_obj_t * gauge_status_labels[16] = {NULL}; // SAFE/WARNING Label
 
 static lv_obj_t * mb_status_label = NULL; // Modbus Status Label
 static lv_obj_t * trending_screen = NULL;
@@ -1556,7 +1557,20 @@ static lv_obj_t* create_gas_widget(lv_obj_t *parent, int index) {
     
     gauge_unit_labels[index] = unit_lbl;
     
-    // 6. Trending Button (Bottom)
+    // 6. Status Label (SAFE / WARNING) - Above Button
+    lv_obj_t * status_lbl = lv_label_create(container);
+    lv_label_set_text(status_lbl, "SAFE");
+    lv_obj_set_style_text_font(status_lbl, &lv_font_montserrat_20, 0); // Larger Font
+    lv_obj_set_style_text_color(status_lbl, lv_color_hex(0xFFFFFF), 0); // White Text
+    lv_obj_set_style_bg_color(status_lbl, lv_color_hex(0x00FF00), 0); // Green Background
+    lv_obj_set_style_bg_opa(status_lbl, LV_OPA_COVER, 0); // Solid
+    lv_obj_set_style_radius(status_lbl, 6, 0); // Slightly more rounded
+    lv_obj_set_style_pad_all(status_lbl, 8, 0); // Larger Padding
+    lv_obj_align(status_lbl, LV_ALIGN_BOTTOM_MID, 0, -70); // Adjusted Position
+    
+    gauge_status_labels[index] = status_lbl;
+
+    // 7. Trending Button (Bottom)
     lv_obj_t * btn = lv_btn_create(container);
     lv_obj_set_size(btn, 100, 30);
     lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -15);
@@ -1655,6 +1669,19 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
                     else lv_obj_set_style_arc_color(gauge_arcs[i], lv_color_hex(0xFF0000), LV_PART_INDICATOR);
                     
                     last_zone[i] = current_zone;
+                }
+                
+                // Status Label Logic
+                if (gauge_status_labels[i]) {
+                     if (val > gauge_configs[i].threshold) {
+                         // Threshold Exceeded -> Warning
+                         lv_label_set_text(gauge_status_labels[i], "WARNING");
+                         lv_obj_set_style_bg_color(gauge_status_labels[i], lv_color_hex(0xFF0000), 0); // Red Box
+                     } else {
+                         // Below Threshold -> Safe
+                         lv_label_set_text(gauge_status_labels[i], "SAFE");
+                         lv_obj_set_style_bg_color(gauge_status_labels[i], lv_color_hex(0x00FF00), 0); // Green Box
+                     }
                 }
             }
         }
