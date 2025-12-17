@@ -643,12 +643,14 @@ static lv_obj_t * kb = NULL; // Global keyboard
 
 // --- Trending Checkbox Callback ---
 static int current_trending_index = 0;
-static bool trending_live_mode = false;
+static bool trending_live_mode = true;
+static lv_obj_t * trending_mode_sw = NULL;
 static lv_obj_t * const_chart = NULL;
 static lv_chart_series_t * const_ser1 = NULL;
 static lv_obj_t * trend_x_labels[5] = {NULL}; // For X-axis time marks
-static lv_obj_t * y_max_label = NULL;
-static lv_obj_t * y_min_label = NULL;
+// static lv_obj_t * y_max_label = NULL; // Replaced by array
+// static lv_obj_t * y_min_label = NULL; // Replaced by array
+static lv_obj_t * trend_y_labels[11] = {NULL}; // 0 to 10 (11 labels for 10 divisions)
 
 static void refresh_trending_chart(void) {
     if (!const_chart || !const_ser1) return;
@@ -664,9 +666,18 @@ static void refresh_trending_chart(void) {
         gauge_configs[current_trending_index].min_val, 
         gauge_configs[current_trending_index].max_val);
     
-    // Update Y-Axis Labels
-    if(y_max_label) lv_label_set_text_fmt(y_max_label, "%d", gauge_configs[current_trending_index].max_val);
-    if(y_min_label) lv_label_set_text_fmt(y_min_label, "%d", gauge_configs[current_trending_index].min_val);
+    // Update Y-Axis Labels (11 Labels)
+    long y_min = gauge_configs[current_trending_index].min_val;
+    long y_max = gauge_configs[current_trending_index].max_val;
+    long range = y_max - y_min;
+    
+    for(int i=0; i<=10; i++) {
+        if(trend_y_labels[i]) {
+            // i=0 is Bottom (Min), i=10 is Top (Max)
+            int val = y_min + (range * i / 10);
+            lv_label_set_text_fmt(trend_y_labels[i], "%d", val);
+        }
+    }
 
     // Update X-Axis Labels (Time)
     time_t now;
@@ -698,10 +709,18 @@ static void refresh_trending_chart(void) {
     if (trending_live_mode) {
         // Live Mode: Reset to empty or small window, relying on timer to push data
         lv_chart_set_point_count(const_chart, 50); // 50 points window
-        // lv_chart_refresh(const_chart); // Will be filled by timer
+        
+        // Clear Series to avoid ghosting 24h data
+        lv_chart_refresh(const_chart); 
+        lv_chart_series_t * ser = const_ser1;
+        lv_coord_t * ser_array = lv_chart_get_y_array(const_chart, ser);
+        if(ser_array) {
+            for(int i=0; i<50; i++) ser_array[i] = LV_CHART_POINT_NONE;
+        }
+        lv_chart_refresh(const_chart);
     } else {
         // 24h Mode: Load from Trend Manager
-        lv_chart_set_point_count(const_chart, TREND_HISTORY_SIZE);
+        // OPTIMIZATION: Downsample 1440 points to ~240 points (Stride 6) to avoid UI Lag
         
         uint16_t * raw_data = trend_manager_get_data(current_trending_index);
         uint16_t head = trend_manager_get_head(current_trending_index);
@@ -710,32 +729,47 @@ static void refresh_trending_chart(void) {
         if (raw_data) {
              lv_chart_series_t * ser = const_ser1;
              
-             // Calculate Count
-             int count = full ? TREND_HISTORY_SIZE : head; 
-             if (count == 0) count = 1; // Avoid 0 count
+             int total_points = full ? TREND_HISTORY_SIZE : head; 
+             int stride = 6; // 1440 / 6 = 240 points
+             int max_chart_points = 240; 
              
-             // Resize (Temporary, LVGL might realloc, ensure this is safe)
-             // Actually lv_chart_set_point_count does realloc.
-             // If we set count to 1440, we MUST provide 1440 points or it looks weird?
-             // No, standard is 1440. We shift data in.
+             // Fixed Point Count to always represent 24h
+             lv_chart_set_point_count(const_chart, max_chart_points);
+             // Clear series before filling (Set all to NONE first)
+             // Actually padding loop handles it, but let's be safe.
              
-             // Wait, if not full, we only have 'head' points. 
-             // If we set point_count=1440, 0s will be displayed?
-             // Better to set point_count = count.
-             lv_chart_set_point_count(const_chart, count);
-
-             for(int i=0; i < count; i++) {
+             lv_chart_refresh(const_chart); // Allocate logic
+             
+             lv_coord_t * ser_array = lv_chart_get_y_array(const_chart, ser);
+             
+             // Safety: Clear entire array first
+             for(int i=0; i<max_chart_points; i++) ser_array[i] = LV_CHART_POINT_NONE;
+             
+             // Calculate how many display points we actually have (Ceiling to ensure we show partial blocks)
+             int valid_display_points = (total_points + stride - 1) / stride;
+             if (valid_display_points > max_chart_points) valid_display_points = max_chart_points;
+             
+             int pad_count = max_chart_points - valid_display_points;
+             
+             // Fill Padding (Left Side - Oldest) with NONE
+             for(int i=0; i<pad_count; i++) {
+                 ser_array[i] = LV_CHART_POINT_NONE;
+             }
+             
+             // Fill Data (Right Side - Newest)
+             for(int i=0; i < valid_display_points; i++) {
                  int idx;
+                 int src_idx = i * stride;
+                 // Ensure we don't exceed availability
+                 if (src_idx >= total_points) src_idx = total_points - 1;
+
                  if (full) {
-                     idx = (head + i) % TREND_HISTORY_SIZE;
+                     // If full, wrap around. Head is oldest.
+                     idx = (head + src_idx) % TREND_HISTORY_SIZE;
                  } else {
-                     idx = i;
+                     // If not full, 0 is oldest.
+                     idx = src_idx;
                  }
-                 
-                 // Raw Value -> Scaled Value? 
-                 // Chart range is already set to min/max.
-                 // But raw_data is RAW analog (4000-20000). 
-                 // We need to map it to Gauge Values (0-100 etc) BEFORE putting in chart.
                  
                  int raw = raw_data[idx];
                  long in_min = gauge_configs[current_trending_index].analog_min;
@@ -748,8 +782,11 @@ static void refresh_trending_chart(void) {
                       val = (int)((raw - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
                  }
                  
-                 lv_chart_set_next_value(const_chart, ser, val);
+                 // Direct Assignment to offset index
+                 ser_array[pad_count + i] = (lv_coord_t)val;
              }
+             
+             lv_chart_refresh(const_chart); // Redraw once
         }
     }
 }
@@ -757,6 +794,7 @@ static void refresh_trending_chart(void) {
 static void trending_mode_sw_cb(lv_event_t * e) {
     lv_obj_t * sw = lv_event_get_target(e);
     trending_live_mode = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    ESP_LOGI(TAG, "Trending Mode Switched: %s", trending_live_mode ? "LIVE" : "24H");
     refresh_trending_chart();
 }
 
@@ -798,36 +836,58 @@ static void create_trending_screen(void) {
 
     // Chart
     lv_obj_t * chart = lv_chart_create(trending_screen);
+    const_chart = chart; // Store global
     lv_obj_set_size(chart, 1100, 600);
     lv_obj_align(chart, LV_ALIGN_CENTER, 0, 20);
     lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
     lv_chart_set_point_count(chart, TREND_HISTORY_SIZE); 
-    lv_chart_set_div_line_count(chart, 5, 7); 
+    lv_chart_set_div_line_count(chart, 10, 7); // 10 Horizontal (Y-axis), 7 Vertical (X-axis) 
     
     lv_obj_set_style_bg_color(chart, lv_color_hex(0x101010), 0);
     lv_obj_set_style_border_color(chart, lv_color_hex(0x404040), 0);
-    lv_obj_set_style_line_color(chart, lv_color_hex(0x303030), LV_PART_MAIN); 
+    // Grid Lines (Main part handles grid in V8)
+    lv_obj_set_style_line_color(chart, lv_color_hex(0x606060), LV_PART_MAIN); 
+    lv_obj_set_style_line_opa(chart, LV_OPA_50, LV_PART_MAIN);
     
     // Enable Axis Ticks - Removed for LVGL v9 compatibility
     // lv_chart_set_axis_tick(chart, LV_CHART_AXIS_PRIMARY_Y, 10, 5, 5, 2, true, 40);
     // lv_chart_set_axis_tick(chart, LV_CHART_AXIS_PRIMARY_X, 10, 5, 5, 2, true, 20);
 
-    const_ser1 = lv_chart_add_series(chart, lv_color_hex(0x00E0FF), LV_CHART_AXIS_PRIMARY_Y);
-    const_chart = chart;
+    const_ser1 = lv_chart_add_series(chart, lv_color_hex(0x00FFFF), LV_CHART_AXIS_PRIMARY_Y);
 
-    // Y-Axis Labels (Manual)
-    y_max_label = lv_label_create(trending_screen);
-    lv_obj_set_style_text_font(y_max_label, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(y_max_label, lv_color_hex(0xAAAAAA), 0);
-    lv_obj_align_to(y_max_label, chart, LV_ALIGN_OUT_LEFT_TOP, -10, 0);
-    lv_label_set_text(y_max_label, "100");
+    // Y-Axis Labels (Manual - 11 Labels for 10 Divisions)
+    // Chart Height is 600. Top is y=20 (from align center?)
+    // Actually chart is ALIGN_CENTER 0, 20.
+    // Screen Height usually 800? Width 1280.
+    // Let's create a container left of chart.
+    
+    lv_obj_t * y_axis_cont = lv_obj_create(trending_screen);
+    lv_obj_set_size(y_axis_cont, 80, 600); // Same height as chart
+    lv_obj_align_to(y_axis_cont, chart, LV_ALIGN_OUT_LEFT_TOP, -5, 0); // Left of chart
+    lv_obj_set_style_bg_opa(y_axis_cont, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(y_axis_cont, 0, 0);
+    lv_obj_set_style_pad_all(y_axis_cont, 0, 0);
 
-    y_min_label = lv_label_create(trending_screen);
-    lv_obj_set_style_text_font(y_min_label, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(y_min_label, lv_color_hex(0xAAAAAA), 0);
-    lv_obj_align_to(y_min_label, chart, LV_ALIGN_OUT_LEFT_BOTTOM, -10, 0);
-    lv_label_set_text(y_min_label, "0");
-
+    for(int i=0; i<=10; i++) {
+        trend_y_labels[i] = lv_label_create(y_axis_cont);
+        lv_label_set_text(trend_y_labels[i], "0");
+        lv_obj_set_style_text_color(trend_y_labels[i], lv_color_hex(0xAAAAAA), 0);
+        lv_obj_set_style_text_font(trend_y_labels[i], &lv_font_montserrat_12, 0);
+        
+        // Position: i=0 is BOTTOM, i=10 is TOP
+        // Parent height 600.
+        // i=0 -> y = 600 - 10 (text height)
+        // i=10 -> y = 0
+        int y_pos = 600 - (600 * i / 10);
+        if(i==0) y_pos -= 14; // Shift up slightly to align with line
+        else if(i==10) y_pos += 0;
+        else y_pos -= 7; // Center vertically on line
+        
+        lv_obj_set_pos(trend_y_labels[i], 0, y_pos);
+        lv_obj_set_width(trend_y_labels[i], 75);
+        lv_obj_set_style_text_align(trend_y_labels[i], LV_TEXT_ALIGN_RIGHT, 0);
+    }
+    
     // X-Axis Label Container (Below Chart)
     lv_obj_t * x_axis_cont = lv_obj_create(trending_screen);
     lv_obj_set_size(x_axis_cont, 1100, 30);
@@ -846,14 +906,15 @@ static void create_trending_screen(void) {
     }
 
     // Toggle: Live vs 24h
-    lv_obj_t * sw_mode = lv_switch_create(trending_screen);
-    lv_obj_align(sw_mode, LV_ALIGN_TOP_RIGHT, -40, 20);
-    lv_obj_add_event_cb(sw_mode, trending_mode_sw_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    trending_mode_sw = lv_switch_create(trending_screen); // Assign to Global Static
+    lv_obj_align(trending_mode_sw, LV_ALIGN_TOP_RIGHT, -40, 20);
+    lv_obj_add_state(trending_mode_sw, LV_STATE_CHECKED); // Default to Live Mode
+    lv_obj_add_event_cb(trending_mode_sw, trending_mode_sw_cb, LV_EVENT_VALUE_CHANGED, NULL);
     
     lv_obj_t * lbl_sw = lv_label_create(trending_screen);
     lv_label_set_text(lbl_sw, "Live Mode");
     lv_obj_set_style_text_color(lbl_sw, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_align_to(lbl_sw, sw_mode, LV_ALIGN_OUT_LEFT_MID, -10, 0);
+    lv_obj_align_to(lbl_sw, trending_mode_sw, LV_ALIGN_OUT_LEFT_MID, -10, 0);
 
     // Back Button
     lv_obj_t * btn_back = lv_btn_create(trending_screen);
@@ -936,7 +997,7 @@ static void auth_enter_cb(lv_event_t * e) {
     } else {
         // Invalid PIN
         lv_textarea_set_text(auth_ta, "");
-        lv_obj_t * lbl_err = lv_obj_get_child(auth_screen, 2); // Assuming label is child 2
+        // lv_obj_t * lbl_err = lv_obj_get_child(auth_screen, 2); // Unused
         // Or cleaner: make it a global or find it. Simple approach: create error label dynamically or just flash standard label
         // Let's create a red visual feedback
         lv_obj_set_style_border_color(auth_ta, lv_color_hex(0xFF0000), 0);
@@ -1989,8 +2050,8 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
     }
     
     // --- Safety / Master Warning Logic ---
-    static int last_siren_state = -1; 
-    static int last_strobe_state = -1;
+    // static int last_siren_state = -1; 
+    // static int last_strobe_state = -1;
     bool any_alarm_active = false;
     
     // We check all 16 gauges
@@ -2048,19 +2109,44 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
                 }
             }
             
+            // --- Live Trending Update (Throttled) ---
+            static int chart_update_div = 0;
+            
+            // Source of Truth: The Switch Object itself
+            bool is_live_checked = false;
+            if (trending_mode_sw && lv_obj_is_valid(trending_mode_sw)) {
+                is_live_checked = lv_obj_has_state(trending_mode_sw, LV_STATE_CHECKED);
+            }
+
+            // Increment Debug/Throttle Counter for active gauge
+            chart_update_div++;
+            
+            if (chart_update_div > 10) { // Every ~1s (10 counts @ 100ms timer)
+                 if (i == current_trending_index) {
+                     // Log status (Throttled)
+                     bool act_scr_match = (lv_scr_act() == trending_screen);
+                     ESP_LOGD(TAG, "IDs: Sw:%d | Scr:%d | Idx:%d", is_live_checked, act_scr_match, (current_trending_index == i));
+                         
+                     if (is_live_checked && 
+                        trending_screen && 
+                        lv_scr_act() == trending_screen && 
+                        current_trending_index == i && 
+                        const_chart && 
+                        const_ser1) {
+                        
+                        ESP_LOGI(TAG, "Chart Update: G%d Val:%ld", i, val);
+                        lv_chart_set_next_value(const_chart, const_ser1, val);
+                        lv_chart_refresh(const_chart); 
+                    }
+                }
+                chart_update_div = 0;
+            }
+
             if (val > gauge_configs[i].threshold) {
                 any_alarm_active = true;
                 
-                // Add to chart if Live Mode is active and this is the selected gauge
-                if (trending_live_mode && 
-                    trending_screen && 
-                    lv_scr_act() == trending_screen && 
-                    current_trending_index == i && 
-                    const_chart && 
-                    const_ser1) {
-                    
-                    lv_chart_set_next_value(const_chart, const_ser1, val);
-                }
+                // (Chart update moved above)
+
                 // Update Warning Screen Source Text (Show the FIRST one found for now, or cycle? First is fine)
                 if (lbl_warning_source) {
                     lv_label_set_text_fmt(lbl_warning_source, "Source: %s\nLevel: %d %s", 
@@ -2121,14 +2207,14 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
         // The check was loop-local above. I should record it or re-check.
         // Re-checking is cheap.
         if (gauge_active_mask & (1 << i)) {
-             long val_check = sys_modbus_data.analog_vals[i];
+             // long val_check = sys_modbus_data.analog_vals[i]; // Unused
              // Scale if needed or check raw? using raw for now as per previous logic assumptions or consistency.
              int t_idx = gauge_configs[i].trigger_relay_index;
              if (t_idx > 0 && t_idx <= 16) {
                  relay_managed[t_idx-1] = true;
                  
                  // Re-evaluate alarm condition for this gauge
-                 bool is_alarm = false;
+                 // bool is_alarm = false; // Unused
                  // Assuming Red Limit Logic
                  long out_min = gauge_configs[i].min_val;
                  long out_max = gauge_configs[i].max_val;
@@ -2249,23 +2335,8 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
     }
     initialized_relays = true;
     
-    // Update Chart (Specific to Trending Page)
-    if (const_chart && trending_screen && lv_scr_act() == trending_screen) {
-         int idx = current_trending_index;
-         int raw_val = sys_modbus_data.analog_vals[idx];
-         long in_min = gauge_configs[idx].analog_min;
-         long in_max = gauge_configs[idx].analog_max;
-         long out_min = gauge_configs[idx].min_val;
-         long out_max = gauge_configs[idx].max_val;
-         
-         int val = raw_val; 
-         if ((in_max - in_min) != 0) {
-              val = (int)((raw_val - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
-         }
-         
-         lv_chart_set_next_value(const_chart, const_ser1, val);
-         lv_chart_refresh(const_chart); 
-    }
+    // Chart update logic is now handled inside the gauge loop with throttling and switch checking.
+    // Duplicate logic removed.
     
     // Update Modbus Status Label
     if (mb_status_label && lv_obj_is_valid(mb_status_label)) {
