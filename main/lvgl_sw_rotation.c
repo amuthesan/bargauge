@@ -453,6 +453,7 @@ static void mqtt_timer_cb(lv_timer_t * t) {
 
 static int current_edit_index = 0; // Index of gauge currently being edited in settings
 static int current_page = 0; // 0 for Page 1, 1 for Page 2
+static bool is_programmatic_update = false; // Prevent callbacks during UI refresh
 
 // Gauge Arrays - Expanded to 16
 static lv_obj_t * gauge_widgets[16] = {NULL};
@@ -476,8 +477,11 @@ static bool alarm_acknowledged = false; // Acknowledge State
 static lv_obj_t * grid_page_1 = NULL;
 static lv_obj_t * grid_page_2 = NULL;
 static lv_obj_t * grid_page_3 = NULL; // Relay Screen
+
 static lv_obj_t * btn_next = NULL;
 static lv_obj_t * btn_prev = NULL;
+static lv_obj_t * btn_load_config = NULL;
+static lv_obj_t * lbl_load_config = NULL;
 
 // Warning Page Objects
 static lv_obj_t * warning_screen = NULL;
@@ -1213,6 +1217,7 @@ static void kb_event_cb(lv_event_t * e) {
 
 // --- Value Update Handlers ---
 static void name_ta_cb(lv_event_t * e) {
+    if (is_programmatic_update) return;
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_VALUE_CHANGED || code == LV_EVENT_DEFOCUSED) {
         lv_obj_t * ta = lv_event_get_target(e);
@@ -1223,6 +1228,7 @@ static void name_ta_cb(lv_event_t * e) {
 }
 
 static void unit_ta_cb(lv_event_t * e) {
+    if (is_programmatic_update) return;
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_VALUE_CHANGED || code == LV_EVENT_DEFOCUSED) {
         lv_obj_t * ta = lv_event_get_target(e);
@@ -1233,18 +1239,20 @@ static void unit_ta_cb(lv_event_t * e) {
 }
 
 static void int_val_ta_cb(lv_event_t * e) {
+    if (is_programmatic_update) return;
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_VALUE_CHANGED || code == LV_EVENT_DEFOCUSED) {
         lv_obj_t * ta = lv_event_get_target(e);
         int field_id = (int)lv_event_get_user_data(e);
         const char * txt = lv_textarea_get_text(ta);
+        
+        // Safety: Don't parse "---" as 0
+        if (strcmp(txt, "---") == 0) return; 
+
         int val = atoi(txt);
         
         if(field_id == 10) gauge_configs[current_edit_index].min_val = val;
         else if(field_id == 11) gauge_configs[current_edit_index].max_val = val;
-        else if(field_id == 12) gauge_configs[current_edit_index].blue_limit = val;
-        else if(field_id == 13) gauge_configs[current_edit_index].yellow_limit = val;
-        else if(field_id == 14) gauge_configs[current_edit_index].analog_min = val;
         else if(field_id == 12) gauge_configs[current_edit_index].blue_limit = val;
         else if(field_id == 13) gauge_configs[current_edit_index].yellow_limit = val;
         else if(field_id == 14) gauge_configs[current_edit_index].analog_min = val;
@@ -1304,48 +1312,88 @@ static lv_obj_t * create_config_row(lv_obj_t * parent, const char * title, const
     return ta;
 }
 
+// Helper to refresh Settings UI from Config
+static void refresh_settings_ui(int index) {
+    if (index < 0 || index >= 16) return;
+    
+    ESP_LOGI(TAG, "Loading Config for Gauge %d: Name='%s'", index+1, gauge_configs[index].name);
+
+    is_programmatic_update = true; // Lock
+
+    // Refresh all TAs with new config values
+    lv_textarea_set_text(ta_name, gauge_configs[index].name);
+    lv_textarea_set_text(ta_unit, gauge_configs[index].unit);
+    
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[index].min_val);
+    lv_textarea_set_text(ta_min, buf);
+    
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[index].max_val);
+    lv_textarea_set_text(ta_max, buf);
+    
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[index].blue_limit);
+    lv_textarea_set_text(ta_blue, buf);
+    
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[index].yellow_limit);
+    lv_textarea_set_text(ta_yellow, buf);
+
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[index].analog_min);
+    lv_textarea_set_text(ta_analog_min, buf);
+
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[index].analog_max);
+    lv_textarea_set_text(ta_analog_max, buf);
+
+    snprintf(buf, sizeof(buf), "%d", gauge_configs[index].threshold);
+    lv_textarea_set_text(ta_threshold, buf);
+    
+    if(dd_trigger) {
+            lv_dropdown_set_selected(dd_trigger, gauge_configs[index].trigger_relay_index);
+    }
+    
+    is_programmatic_update = false; // Unlock
+}
+
 static void dd_event_cb(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t * obj = lv_event_get_target(e);
     if(code == LV_EVENT_VALUE_CHANGED) {
         current_edit_index = lv_dropdown_get_selected(obj);
+        // refresh_settings_ui(current_edit_index); // user requested DISABLE allow auto-load
         
-        // Refresh all TAs with new config values
-        lv_textarea_set_text(ta_name, gauge_configs[current_edit_index].name);
-        lv_textarea_set_text(ta_unit, gauge_configs[current_edit_index].unit);
+        // Reset Load Button Text
+        if(lbl_load_config) lv_label_set_text(lbl_load_config, "LOAD CONFIG");
         
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].min_val);
-        lv_textarea_set_text(ta_min, buf);
-        
-        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].max_val);
-        lv_textarea_set_text(ta_max, buf);
-        
-        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].blue_limit);
-        lv_textarea_set_text(ta_blue, buf);
-        
-        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].yellow_limit);
-        lv_textarea_set_text(ta_yellow, buf);
-
-        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].analog_min);
-        lv_textarea_set_text(ta_analog_min, buf);
-
-        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].analog_max);
-        lv_textarea_set_text(ta_analog_max, buf);
-
-        snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].threshold);
-        lv_textarea_set_text(ta_threshold, buf);
-        
-        if(dd_trigger) {
-             lv_dropdown_set_selected(dd_trigger, gauge_configs[current_edit_index].trigger_relay_index);
-        }
+        is_programmatic_update = true; // Lock before clearing
+        // Clear Text Areas to indicate need to Load
+        if(ta_name) lv_textarea_set_text(ta_name, "---");
+        if(ta_unit) lv_textarea_set_text(ta_unit, "---");
+        if(ta_min) lv_textarea_set_text(ta_min, "---");
+        if(ta_max) lv_textarea_set_text(ta_max, "---");
+        if(ta_blue) lv_textarea_set_text(ta_blue, "---");
+        if(ta_yellow) lv_textarea_set_text(ta_yellow, "---");
+        if(ta_analog_min) lv_textarea_set_text(ta_analog_min, "---");
+        if(ta_analog_max) lv_textarea_set_text(ta_analog_max, "---");
+        if(ta_threshold) lv_textarea_set_text(ta_threshold, "---");
+        is_programmatic_update = false; // Unlock
     }
+}
+
+static void load_config_btn_cb(lv_event_t * e) {
+    // Manually reload from memory to UI
+    refresh_settings_ui(current_edit_index);
+    
+    // Feedback
+    if(lbl_load_config) lv_label_set_text(lbl_load_config, "LOADED");
+    
+    // Optional: Restore text after delay? For now just visual cue.
 }
 
 static void trigger_dd_cb(lv_event_t * e) {
     lv_obj_t * dd = lv_event_get_target(e);
     gauge_configs[current_edit_index].trigger_relay_index = lv_dropdown_get_selected(dd);
 }
+
+
 
 static void siren_dd_cb(lv_event_t * e) {
     lv_obj_t * dd = lv_event_get_target(e);
@@ -1470,39 +1518,53 @@ static void create_settings_screen(void) {
     // Dropdown to Select Gauge
 
     // Dropdown to Select Gauge
-    lv_obj_t * dd = lv_dropdown_create(tab1);
-    lv_dropdown_set_options(dd, "Gauge 1\nGauge 2\nGauge 3\nGauge 4\nGauge 5\nGauge 6\nGauge 7\nGauge 8\n"
-                                "Gauge 9\nGauge 10\nGauge 11\nGauge 12\nGauge 13\nGauge 14\nGauge 15\nGauge 16");
-    lv_obj_set_width(dd, 200);
-    lv_dropdown_set_selected(dd, current_edit_index);
-    lv_obj_add_event_cb(dd, dd_event_cb, LV_EVENT_ALL, NULL);
-    lv_obj_set_style_margin_bottom(dd, 10, 0);
+    lv_obj_t * dd_gauge = lv_dropdown_create(tab1);
+    lv_dropdown_set_options(dd_gauge, "Gauge 1\nGauge 2\nGauge 3\nGauge 4\nGauge 5\nGauge 6\nGauge 7\nGauge 8\n"
+                                      "Gauge 9\nGauge 10\nGauge 11\nGauge 12\nGauge 13\nGauge 14\nGauge 15\nGauge 16");
+    lv_dropdown_set_selected(dd_gauge, 0); // Default to Gauge 1
+    lv_obj_add_event_cb(dd_gauge, dd_event_cb, LV_EVENT_ALL, NULL);
+    lv_obj_set_width(dd_gauge, 240); // Slightly smaller to fit button
+    lv_obj_set_style_margin_bottom(dd_gauge, 10, 0);
+    
+    // Load Config Button (Global Handle)
+    btn_load_config = lv_btn_create(tab1);
+    lv_obj_set_size(btn_load_config, 140, 40); // Compact
+    lv_obj_add_event_cb(btn_load_config, load_config_btn_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_set_style_bg_color(btn_load_config, lv_color_hex(0x0088CC), 0); // Blue
+    
+    lbl_load_config = lv_label_create(btn_load_config);
+    lv_label_set_text(lbl_load_config, "LOAD CONFIG");
+    lv_obj_set_style_text_font(lbl_load_config, &lv_font_montserrat_14, 0);
+    lv_obj_center(lbl_load_config);
+    lv_obj_set_style_margin_bottom(btn_load_config, 10, 0);
+    
+
 
     // Rows
-    ta_name = create_config_row(tab1, "Gauge Name", gauge_configs[current_edit_index].name, 0, 1);
-    ta_unit = create_config_row(tab1, "Gauge Unit", gauge_configs[current_edit_index].unit, 0, 2);
+    ta_name = create_config_row(tab1, "Gauge Name", "---", 0, 1);
+    ta_unit = create_config_row(tab1, "Gauge Unit", "---", 0, 2);
     
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].min_val);
-    ta_min = create_config_row(tab1, "Gauge Min", buf, 10, 0);
+    // char buf[16];
+    // snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].min_val);
+    ta_min = create_config_row(tab1, "Gauge Min", "---", 10, 0);
     
-    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].max_val);
-    ta_max = create_config_row(tab1, "Gauge Max", buf, 11, 0);
+    // snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].max_val);
+    ta_max = create_config_row(tab1, "Gauge Max", "---", 11, 0);
     
-    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].blue_limit);
-    ta_blue = create_config_row(tab1, "Blue Limit", buf, 12, 0);
+    // snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].blue_limit);
+    ta_blue = create_config_row(tab1, "Blue Limit", "---", 12, 0);
     
-    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].yellow_limit);
-    ta_yellow = create_config_row(tab1, "Yellow Limit", buf, 13, 0);
+    // snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].yellow_limit);
+    ta_yellow = create_config_row(tab1, "Yellow Limit", "---", 13, 0);
 
-    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].analog_min);
-    ta_analog_min = create_config_row(tab1, "Analog In Min", buf, 14, 0);
+    // snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].analog_min);
+    ta_analog_min = create_config_row(tab1, "Analog In Min", "---", 14, 0);
 
-    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].analog_max);
-    ta_analog_max = create_config_row(tab1, "Analog In Max", buf, 15, 0);
+    // snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].analog_max);
+    ta_analog_max = create_config_row(tab1, "Analog In Max", "---", 15, 0);
 
-    snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].threshold);
-    ta_threshold = create_config_row(tab1, "Threshold", buf, 16, 0);
+    // snprintf(buf, sizeof(buf), "%d", gauge_configs[current_edit_index].threshold);
+    ta_threshold = create_config_row(tab1, "Threshold", "---", 16, 0);
 
     // Trigger Relay Dropdown
     lv_obj_t * lbl_trig = lv_label_create(tab1);
