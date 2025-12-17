@@ -482,6 +482,9 @@ static lv_obj_t * btn_prev = NULL;
 // Warning Page Objects
 static lv_obj_t * warning_screen = NULL;
 static lv_obj_t * last_active_screen = NULL; // To return after Ack
+static lv_obj_t * lbl_warning_source = NULL;
+static lv_obj_t * lbl_warning_time = NULL;
+// static lv_obj_t * warning_label = NULL; // Already defined above
 
 // Service Page Objects
 static lv_obj_t * service_screen = NULL;
@@ -1060,7 +1063,7 @@ static void ta_event_cb(lv_event_t * e) {
 // --------------------------------------------------------------------------
 //                         WARNING SCREEN
 // --------------------------------------------------------------------------
-static lv_obj_t * lbl_warning_source = NULL;
+
 
 static void perform_acknowledge(void) {
     if (!alarm_acknowledged) {
@@ -1170,6 +1173,14 @@ static void create_warning_screen(void) {
     lv_obj_set_style_radius(lbl_warning_source, 10, 0);
     lv_obj_set_style_margin_top(lbl_warning_source, 20, 0);
     lv_obj_set_style_margin_bottom(lbl_warning_source, 20, 0);
+
+    // Time Label (Added v2.11.1)
+    lbl_warning_time = lv_label_create(warning_screen);
+    lv_label_set_text(lbl_warning_time, "Time: --:--:--");
+    lv_obj_set_style_text_font(lbl_warning_time, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(lbl_warning_time, lv_color_hex(0xFFD700), 0); // Gold
+    lv_obj_set_style_text_align(lbl_warning_time, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_margin_bottom(lbl_warning_time, 20, 0);
 
     // Generic Message
     lv_obj_t * msg = lv_label_create(warning_screen);
@@ -1514,7 +1525,7 @@ static void create_settings_screen(void) {
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
     // Use macro for version
-    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "2.11.0"); 
+    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "2.12.0"); 
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
@@ -2083,6 +2094,19 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
     if (any_alarm_active && !prev_any_alarm_active) {
         siren_latched = true;
         ESP_LOGI(TAG, "Siren Latched ON (Alarm Triggered)");
+        
+        // Capture Timestamp
+        if (lbl_warning_time) {
+            time_t now;
+            struct tm timeinfo;
+            time(&now);
+            localtime_r(&now, &timeinfo);
+            
+            // Format time: HH:MM:SS
+            // If NTP isn't synced, it might show 1970, which is acceptable if RTC/NTP failed.
+            lv_label_set_text_fmt(lbl_warning_time, "Time: %02d:%02d:%02d", 
+                                  timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+        }
     }
     prev_any_alarm_active = any_alarm_active; // Update for next loop
 
