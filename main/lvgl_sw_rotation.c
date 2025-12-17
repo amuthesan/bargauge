@@ -2200,39 +2200,40 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
     bool relay_targets[16] = {false};
     bool relay_managed[16] = {false}; // Track which relays are controlled by this logic
 
+    static bool independent_relay_latched[16] = {false};
+
+    // Reset Independent Latches if Button 2 (Ack) is pressed
+    if (sys_modbus_data.buttons[1]) {
+        memset(independent_relay_latched, 0, sizeof(independent_relay_latched));
+    }
+
     // 1. Independent Gauge Triggers
     for(int i=0; i<16; i++) {
-        // Only if gauge active and alarm active (red_active logic from above loop?)
-        // I need to know if THIS gauge is in alarm.
-        // The check was loop-local above. I should record it or re-check.
-        // Re-checking is cheap.
         if (gauge_active_mask & (1 << i)) {
-             // long val_check = sys_modbus_data.analog_vals[i]; // Unused
-             // Scale if needed or check raw? using raw for now as per previous logic assumptions or consistency.
              int t_idx = gauge_configs[i].trigger_relay_index;
              if (t_idx > 0 && t_idx <= 16) {
                  relay_managed[t_idx-1] = true;
                  
-                 // Re-evaluate alarm condition for this gauge
-                 // bool is_alarm = false; // Unused
-                 // Assuming Red Limit Logic
+                 // Calculate Normalized Value
+                 float norm_val = (float)sys_modbus_data.analog_vals[i];
+                 long in_min = gauge_configs[i].analog_min;
+                 long in_max = gauge_configs[i].analog_max;
                  long out_min = gauge_configs[i].min_val;
                  long out_max = gauge_configs[i].max_val;
-                 // Need normalized value?
-                 // The red_limit is in user units.
-                 // Let's use the loop above to store alarm state?
-                 // Or easier: Just re-calculate normalized value
-                 float norm_val = (float)sys_modbus_data.analog_vals[i];
-                  long in_min = gauge_configs[i].analog_min;
-                  long in_max = gauge_configs[i].analog_max;
-                  if ((in_max - in_min) != 0) {
-                       norm_val = (float)((sys_modbus_data.analog_vals[i] - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
-                  }
-                  
-                  
-                  if (norm_val >= gauge_configs[i].threshold) { 
-                      relay_targets[t_idx-1] = true;
-                  }
+                 
+                 if ((in_max - in_min) != 0) {
+                      norm_val = (float)((sys_modbus_data.analog_vals[i] - in_min) * (out_max - out_min) / (in_max - in_min) + out_min);
+                 }
+                 
+                 // Check Threshold & Latch
+                 if (norm_val >= gauge_configs[i].threshold) { 
+                     independent_relay_latched[t_idx-1] = true;
+                 }
+                 
+                 // Apply Latch State to Target
+                 if (independent_relay_latched[t_idx-1]) {
+                     relay_targets[t_idx-1] = true;
+                 }
              }
         }
     }
