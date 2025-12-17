@@ -100,12 +100,12 @@ static void modbus_poll_task(void *arg) {
                 sys_modbus_data.connected[0] = false;
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(50));
+        vTaskDelay(pdMS_TO_TICKS(100));
 
         // Poll CID_ANALOG_2 (Offset index 8)
         err = mbc_master_get_parameter(CID_ANALOG_2, "Analog 9-16", (uint8_t*)&sys_modbus_data.analog_vals[8], &type);
         sys_modbus_data.connected[1] = (err == ESP_OK);
-        vTaskDelay(pdMS_TO_TICKS(50));
+        vTaskDelay(pdMS_TO_TICKS(100));
 
         // Poll Relays 1 
         uint8_t relay_packed = 0;
@@ -116,7 +116,7 @@ static void modbus_poll_task(void *arg) {
         } else {
             sys_modbus_data.connected[2] = false;
         }
-        vTaskDelay(pdMS_TO_TICKS(50));
+        vTaskDelay(pdMS_TO_TICKS(100));
 
         // Poll Relays 2
         err = mbc_master_get_parameter(CID_RELAY_2, "Relay 9-16", &relay_packed, &type);
@@ -126,7 +126,7 @@ static void modbus_poll_task(void *arg) {
         } else {
             sys_modbus_data.connected[3] = false;
         }
-        vTaskDelay(pdMS_TO_TICKS(50));
+        vTaskDelay(pdMS_TO_TICKS(100));
 
         // Poll Buttons (ID 4)
         uint8_t btn_packed = 0;
