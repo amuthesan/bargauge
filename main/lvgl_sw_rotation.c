@@ -1966,15 +1966,22 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
                 }
                 
                 // Status Label Logic
+                static int last_status_state[16] = {0}; // 0: Init, 1: Safe, 2: Warning
+                
                 if (gauge_status_labels[i]) {
-                     if (val > gauge_configs[i].threshold) {
-                         // Threshold Exceeded -> Warning
-                         lv_label_set_text(gauge_status_labels[i], "WARNING");
-                         lv_obj_set_style_bg_color(gauge_status_labels[i], lv_color_hex(0xFF0000), 0); // Red Box
-                     } else {
-                         // Below Threshold -> Safe
-                         lv_label_set_text(gauge_status_labels[i], "SAFE");
-                         lv_obj_set_style_bg_color(gauge_status_labels[i], lv_color_hex(0x00FF00), 0); // Green Box
+                     int new_state = (val > gauge_configs[i].threshold) ? 2 : 1;
+                     
+                     if (last_status_state[i] != new_state) {
+                         if (new_state == 2) {
+                             // Threshold Exceeded -> Warning
+                             lv_label_set_text(gauge_status_labels[i], "WARNING");
+                             lv_obj_set_style_bg_color(gauge_status_labels[i], lv_color_hex(0xFF0000), 0); // Red Box
+                         } else {
+                             // Below Threshold -> Safe
+                             lv_label_set_text(gauge_status_labels[i], "SAFE");
+                             lv_obj_set_style_bg_color(gauge_status_labels[i], lv_color_hex(0x00FF00), 0); // Green Box
+                         }
+                         last_status_state[i] = new_state;
                      }
                 }
             }
