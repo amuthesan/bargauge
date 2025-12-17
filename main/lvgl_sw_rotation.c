@@ -1514,7 +1514,7 @@ static void create_settings_screen(void) {
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
     // Use macro for version
-    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "2.10.1"); 
+    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "2.11.0"); 
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
@@ -2072,7 +2072,30 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
     }
 
     // 2. Siren Logic
-    bool target_siren = any_alarm_active && !alarm_acknowledged;
+    // Latch ON when alarm triggers (Rising Edge of any_alarm_active)
+    // Remain ON even if condition clears.
+    // Turn OFF ONLY when Button 2 (Ack) is pressed (Index 1).
+    
+    static bool siren_latched = false;
+    static bool prev_any_alarm_active = false;
+
+    // Rising Edge Detection: Alarm 0 -> 1
+    if (any_alarm_active && !prev_any_alarm_active) {
+        siren_latched = true;
+        ESP_LOGI(TAG, "Siren Latched ON (Alarm Triggered)");
+    }
+    prev_any_alarm_active = any_alarm_active; // Update for next loop
+
+    // Reset Logic: Button 2 (Index 1)
+    // Note: alarm_acknowledged is also set by Button 2 elsewhere, but we handle the Relay Latch purely here.
+    if (sys_modbus_data.buttons[1]) {
+        if(siren_latched) {
+            siren_latched = false;
+            ESP_LOGI(TAG, "Siren Latched OFF (Ack Button)");
+        }
+    }
+
+    bool target_siren = siren_latched;
     if (safety_config.siren_invert) target_siren = !target_siren;
     
     if (safety_config.siren_relay_index > 0) {
@@ -2082,7 +2105,22 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
     }
 
     // 3. Strobe Logic
-    bool target_strobe = any_alarm_active; // Ack doesn't stop strobe
+    static bool strobe_latched = false;
+
+    // Latch ON if alarm active
+    if (any_alarm_active) {
+        strobe_latched = true;
+    }
+
+    // Reset Latch ONLY if Button 1 (Index 0) Pressed AND No Alarm
+    if (sys_modbus_data.buttons[0] && !any_alarm_active) {
+        strobe_latched = false;
+        ESP_LOGI(TAG, "Strobe Latched Reset via Button 1");
+    }
+
+    bool target_strobe = strobe_latched; 
+    // Note: If invert is set, we invert the LOGIC state. 
+    // e.g. If Latched (True) -> Low (False) if inverted.
     if (safety_config.strobe_invert) target_strobe = !target_strobe;
 
     if (safety_config.strobe_relay_index > 0) {
