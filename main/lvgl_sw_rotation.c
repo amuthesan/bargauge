@@ -3027,7 +3027,7 @@ static void create_main_screen(void) {
         // Service Button (Bottom Left)
         // Service Button (Bottom Left)
         lv_obj_t * service_btn = lv_btn_create(main_screen);
-        lv_obj_set_size(service_btn, 40, 40); 
+        lv_obj_set_size(service_btn, 60, 60); 
         lv_obj_align(service_btn, LV_ALIGN_BOTTOM_LEFT, 10, -10);
         lv_obj_add_event_cb(service_btn, service_btn_event_cb, LV_EVENT_CLICKED, (void*)0); 
         
@@ -3038,7 +3038,7 @@ static void create_main_screen(void) {
 
         // Settings Button (Bottom Right)
         lv_obj_t * settings_btn = lv_btn_create(main_screen);
-        lv_obj_set_size(settings_btn, 40, 40); 
+        lv_obj_set_size(settings_btn, 60, 60); 
         lv_obj_align(settings_btn, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
         lv_obj_add_event_cb(settings_btn, settings_btn_event_cb, LV_EVENT_CLICKED, (void*)0); 
         
