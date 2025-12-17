@@ -2134,7 +2134,7 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
                         const_chart && 
                         const_ser1) {
                         
-                        ESP_LOGI(TAG, "Chart Update: G%d Val:%ld", i, val);
+                        ESP_LOGI(TAG, "Chart Update: G%d Val:%d", i, val);
                         lv_chart_set_next_value(const_chart, const_ser1, val);
                         lv_chart_refresh(const_chart); 
                     }
