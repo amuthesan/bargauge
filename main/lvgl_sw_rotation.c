@@ -2180,15 +2180,26 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
             }
         }
     } else {
-        // Clear everything if safe
-        alarm_acknowledged = false; // Reset ack
-        if(warning_label) lv_obj_add_flag(warning_label, LV_OBJ_FLAG_HIDDEN);
+        // No Active Alarm
         
-        // If we clear while on warning screen, go back?
-        // User didn't specify, but makes sense.
+        // If we are on the warning screen, we MUST wait for Acknowledge (Button 2) before leaving.
+        // This implements "Latching Layout" behavior.
         if (lv_scr_act() == warning_screen) {
-             if (last_active_screen) lv_scr_load(last_active_screen);
-             else lv_scr_load(main_screen);
+            if (sys_modbus_data.buttons[1]) {
+                // User pressed Ack -> Dismiss
+                alarm_acknowledged = false; 
+                if(warning_label) lv_obj_add_flag(warning_label, LV_OBJ_FLAG_HIDDEN);
+                
+                if (last_active_screen) lv_scr_load(last_active_screen);
+                else lv_scr_load(main_screen);
+                
+                ESP_LOGI(TAG, "Warning Screen Dismissed via Button 2 (Alarm Clear)");
+            }
+            // Else: Stay on Warning Screen
+        } else {
+             // Not on warning screen, ensure state is clean
+             alarm_acknowledged = false; 
+             if(warning_label) lv_obj_add_flag(warning_label, LV_OBJ_FLAG_HIDDEN);
         }
     }
 
