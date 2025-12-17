@@ -2993,7 +2993,35 @@ static void create_main_screen(void) {
         lv_obj_set_style_pad_top(b_hdr, 30, 0);
         lv_obj_set_style_pad_bottom(b_hdr, 10, 0);
         
+        // Digital Input Grid
+        lv_obj_t * btn_cont = lv_obj_create(grid_page_3);
+        lv_obj_set_size(btn_cont, 1100, 100); 
+        lv_obj_set_style_bg_color(btn_cont, lv_color_hex(0x101010), 0);
+        lv_obj_set_style_border_width(btn_cont, 0, 0);
+        lv_obj_set_flex_flow(btn_cont, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(btn_cont, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START); // Start align
+        lv_obj_set_style_pad_gap(btn_cont, 20, 0);
 
+        for(int i=0; i<4; i++) {
+            lv_obj_t * item = lv_obj_create(btn_cont);
+            lv_obj_set_size(item, 200, 60);
+            lv_obj_set_style_bg_color(item, lv_color_hex(0x303030), 0);
+            lv_obj_set_style_pad_all(item, 5, 0);
+            
+            lv_obj_t * lbl = lv_label_create(item);
+            lv_label_set_text_fmt(lbl, "DI %d", i+1);
+            lv_obj_set_style_text_color(lbl, lv_color_hex(0xAAAAAA), 0);
+            lv_obj_align(lbl, LV_ALIGN_LEFT_MID, 10, 0);
+            
+            // LED
+            lv_obj_t * led = lv_led_create(item);
+            lv_obj_set_size(led, 20, 20);
+            lv_obj_align(led, LV_ALIGN_RIGHT_MID, -10, 0);
+            lv_led_off(led);
+            lv_led_set_color(led, lv_color_hex(0x00FF00));
+            
+            input_leds[i] = led;
+        }
         // --- BUTTONS & OVERLAYS (Must be created LAST for Z-Order) ---
 
         // Service Button (Bottom Left)
