@@ -1514,7 +1514,7 @@ static void create_settings_screen(void) {
     // Version
     lv_obj_t * lbl_ver = lv_label_create(tab2);
     // Use macro for version
-    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "2.10.0"); 
+    lv_label_set_text_fmt(lbl_ver, "App Version: v%s", "2.10.1"); 
     lv_obj_set_style_text_font(lbl_ver, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_margin_bottom(lbl_ver, 20, 0);
@@ -1544,6 +1544,18 @@ static void create_settings_screen(void) {
     // --- Tab 3: Safety Settings ---
     lv_obj_t * tab3 = lv_tabview_add_tab(tabview, "Safety");
     lv_obj_set_flex_flow(tab3, LV_FLEX_FLOW_COLUMN);
+
+    // Save Button (Added v2.0.5)
+    lv_obj_t * btn_save_safe = lv_btn_create(tab3);
+    lv_obj_set_size(btn_save_safe, 200, 50);
+    lv_obj_add_event_cb(btn_save_safe, save_config_btn_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_set_style_bg_color(btn_save_safe, lv_color_hex(0x00AA00), 0); // Green
+    
+    lv_obj_t * lbl_save_safe = lv_label_create(btn_save_safe);
+    lv_label_set_text(lbl_save_safe, "SAVE CONFIG");
+    lv_obj_set_style_text_font(lbl_save_safe, &lv_font_montserrat_20, 0);
+    lv_obj_center(lbl_save_safe);
+    lv_obj_set_style_margin_bottom(btn_save_safe, 20, 0);
     
     // Siren Relay
     // ... (rest of Tab 3) ...
