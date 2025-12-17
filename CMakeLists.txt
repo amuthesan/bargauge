@@ -4,5 +4,5 @@ cmake_minimum_required(VERSION 3.16)
 
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(bar_gauge_demo VERSION 3.7.3)
+project(bar_gauge_demo VERSION 3.7.4)
 set(PROJECT_VER "0.6.1")

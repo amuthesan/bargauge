@@ -2202,8 +2202,8 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
 
     static bool independent_relay_latched[16] = {false};
 
-    // Reset Independent Latches if Button 2 (Ack) is pressed
-    if (sys_modbus_data.buttons[1]) {
+    // Reset Independent Latches if Button 1 (Reset) is pressed
+    if (sys_modbus_data.buttons[0]) {
         memset(independent_relay_latched, 0, sizeof(independent_relay_latched));
     }
 
