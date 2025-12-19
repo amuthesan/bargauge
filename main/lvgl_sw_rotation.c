@@ -2182,19 +2182,23 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
             // Check Suppression Timer
             bool suppressed = (esp_timer_get_time() < warning_suppression_end_time);
 
-            // Hardware Acknowledge Check (Button 2, Index 1)
-            if (sys_modbus_data.buttons[1]) {
+            // Hardware Acknowledge Check (Button 2, Index 1) - RISING EDGE ONLY
+            // Fixes issue where held button or stuck signal causes infinite suppression loop
+            static bool prev_ack_btn_state = false;
+            bool curr_ack_btn_state = sys_modbus_data.buttons[1];
+
+            if (curr_ack_btn_state && !prev_ack_btn_state) {
                  perform_acknowledge();
                  
                  // Smart Suppression: Only start a NEW timer if one isn't already running.
-                 // This prevents a stuck button or noisy alarm from constantly extending the suppression.
                  if (warning_suppression_end_time == 0 || esp_timer_get_time() > warning_suppression_end_time) {
                      warning_suppression_end_time = esp_timer_get_time() + 60000000;
-                     ESP_LOGW(TAG, "Hardware Ack: Suppression Started (60s)");
+                     ESP_LOGW(TAG, "Hardware Ack (Rising Edge): Suppression Started (60s)");
                  } else {
                      ESP_LOGD(TAG, "Hardware Ack: Suppression Already Active (Ignored)");
                  }
             }
+            prev_ack_btn_state = curr_ack_btn_state;
 
             // Check if we are already on warning screen
             lv_obj_t * act_scr = lv_scr_act();
