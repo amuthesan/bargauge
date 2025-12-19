@@ -2162,50 +2162,48 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
 
     
     // UI Updates based on Alarm
+    // UI Updates based on Alarm
     if(any_alarm_active) {
-        // Show Warning Label (Top Bar) - Always show this, regardless of screen suppression
+        // Show Warning Label (Top Bar) - Always show this
         if(warning_label) lv_obj_clear_flag(warning_label, LV_OBJ_FLAG_HIDDEN);
         
-        // Logic Fix: If alarm is acknowledged but suppression has expired, we must FORCE reset the ack flag
-        // to allow the screen to reappear. The Siren will NOT re-trigger because it requires a Rising Edge.
+        // --- 1. DECOUPLED INPUT PROCESSING (Always Runs) ---
+        // Fixes "Missing Release" bug by creating a continuous history of button state
+        static bool prev_ack_btn_state = false;
+        bool curr_ack_btn_state = sys_modbus_data.buttons[1]; // Button 2
+        bool ack_rising_edge = (curr_ack_btn_state && !prev_ack_btn_state);
+        prev_ack_btn_state = curr_ack_btn_state; // Always update history
+
+        if (ack_rising_edge) {
+             perform_acknowledge(); // Sets alarm_acknowledged = true
+             
+             // Start 60s Timer (Locked: No Extension if already running)
+             if (warning_suppression_end_time == 0 || esp_timer_get_time() > warning_suppression_end_time) {
+                 warning_suppression_end_time = esp_timer_get_time() + 60000000;
+                 ESP_LOGW(TAG, "Ack (Input): Suppression Started (60s)");
+             } else {
+                 ESP_LOGD(TAG, "Ack (Input): Suppression Active (Ignored)");
+             }
+        }
+
+        // --- 2. TIMER EXPIRY LOGIC ---
+        // If alarm logic is "Acknowledged" but timer expired, un-acknowledge it to show screen.
         if (alarm_acknowledged && warning_suppression_end_time > 0) {
             if (esp_timer_get_time() > warning_suppression_end_time) {
                 alarm_acknowledged = false; 
-                warning_suppression_end_time = 0; // Reset timer so we don't spam checking
-                ESP_LOGW(TAG, "Warning Suppression Expired & Alarm Active -> Re-showing Screen (Visual Only)");
+                warning_suppression_end_time = 0; 
+                ESP_LOGW(TAG, "Timer Expired & Alarm Active -> Force Screen Show");
             }
         }
 
-        // Create Warning Screen Logic
+        // --- 3. DISPLAY LOGIC ---
         if(!alarm_acknowledged) {
-            
-            // Check Suppression Timer
-            bool suppressed = (esp_timer_get_time() < warning_suppression_end_time);
-
-            // Hardware Acknowledge Check (Button 2, Index 1) - RISING EDGE ONLY
-            // Fixes issue where held button or stuck signal causes infinite suppression loop
-            static bool prev_ack_btn_state = false;
-            bool curr_ack_btn_state = sys_modbus_data.buttons[1];
-
-            if (curr_ack_btn_state && !prev_ack_btn_state) {
-                 perform_acknowledge();
-                 
-                 // Smart Suppression: Only start a NEW timer if one isn't already running.
-                 if (warning_suppression_end_time == 0 || esp_timer_get_time() > warning_suppression_end_time) {
-                     warning_suppression_end_time = esp_timer_get_time() + 60000000;
-                     ESP_LOGW(TAG, "Hardware Ack (Rising Edge): Suppression Started (60s)");
-                 } else {
-                     ESP_LOGD(TAG, "Hardware Ack: Suppression Already Active (Ignored)");
-                 }
-            }
-            prev_ack_btn_state = curr_ack_btn_state;
-
             // Check if we are already on warning screen
             lv_obj_t * act_scr = lv_scr_act();
             
-            // Only switch to warning screen if NOT suppressed AND not already there
-            if (!suppressed && act_scr != warning_screen) {
-                last_active_screen = act_scr; // Save current screen (Main or Settings)
+            // Only switch to warning screen if not already there
+            if (act_scr != warning_screen) {
+                last_active_screen = act_scr; 
                 ESP_LOGE(TAG, "ALARM TRIGGERED! Switching to Warning Screen.");
                 lv_scr_load_anim(warning_screen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
             }
