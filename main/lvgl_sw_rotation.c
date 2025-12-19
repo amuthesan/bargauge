@@ -473,6 +473,7 @@ static lv_obj_t * relay_leds[16] = {NULL};
 static lv_obj_t * input_leds[4] = {NULL};
 
 static bool alarm_acknowledged = false; // Acknowledge State
+static int64_t warning_suppression_end_time = 0; // Warning Screen Suppression Timestamp
 
 static lv_obj_t * grid_page_1 = NULL;
 static lv_obj_t * grid_page_2 = NULL;
@@ -2157,7 +2158,8 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
     }
     
     // --- Warning Screen Logic ---
-    static int64_t warning_suppression_end_time = 0; // Timestamp to inhibit warning screen
+    // static int64_t warning_suppression_end_time = 0; // Moved to File Scope (Global Static) for safety
+
     
     // UI Updates based on Alarm
     if(any_alarm_active) {
@@ -2184,10 +2186,14 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
             if (sys_modbus_data.buttons[1]) {
                  perform_acknowledge();
                  
-                 // Start Suppression Timer (60 seconds = 60,000,000 us)
-                 warning_suppression_end_time = esp_timer_get_time() + 60000000;
-                 
-                 ESP_LOGW(TAG, "Hardware Ack Detected (Btn 2)! Suppressing Warning Screen for 60s.");
+                 // Smart Suppression: Only start a NEW timer if one isn't already running.
+                 // This prevents a stuck button or noisy alarm from constantly extending the suppression.
+                 if (warning_suppression_end_time == 0 || esp_timer_get_time() > warning_suppression_end_time) {
+                     warning_suppression_end_time = esp_timer_get_time() + 60000000;
+                     ESP_LOGW(TAG, "Hardware Ack: Suppression Started (60s)");
+                 } else {
+                     ESP_LOGD(TAG, "Hardware Ack: Suppression Already Active (Ignored)");
+                 }
             }
 
             // Check if we are already on warning screen
