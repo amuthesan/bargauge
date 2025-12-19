@@ -2156,24 +2156,35 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
         }
     }
     
+    // --- Warning Screen Logic ---
+    static int64_t warning_suppression_end_time = 0; // Timestamp to inhibit warning screen
+    
     // UI Updates based on Alarm
     if(any_alarm_active) {
-        // Show Warning Label
+        // Show Warning Label (Top Bar) - Always show this, regardless of screen suppression
         if(warning_label) lv_obj_clear_flag(warning_label, LV_OBJ_FLAG_HIDDEN);
         
         // Create Warning Screen Logic
         if(!alarm_acknowledged) {
+            
+            // Check Suppression Timer
+            bool suppressed = (esp_timer_get_time() < warning_suppression_end_time);
+
             // Hardware Acknowledge Check (Button 2, Index 1)
-            // Assumes sys_modbus_data is active and polling
-            // UPDATED: User requested Button 2 for Ack
             if (sys_modbus_data.buttons[1]) {
                  perform_acknowledge();
-                 ESP_LOGW(TAG, "Hardware Ack Detected (Btn 2)!");
+                 
+                 // Start Suppression Timer (60 seconds = 60,000,000 us)
+                 warning_suppression_end_time = esp_timer_get_time() + 60000000;
+                 
+                 ESP_LOGW(TAG, "Hardware Ack Detected (Btn 2)! Suppressing Warning Screen for 60s.");
             }
 
             // Check if we are already on warning screen
             lv_obj_t * act_scr = lv_scr_act();
-            if (act_scr != warning_screen) {
+            
+            // Only switch to warning screen if NOT suppressed AND not already there
+            if (!suppressed && act_scr != warning_screen) {
                 last_active_screen = act_scr; // Save current screen (Main or Settings)
                 ESP_LOGE(TAG, "ALARM TRIGGERED! Switching to Warning Screen.");
                 lv_scr_load_anim(warning_screen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
@@ -2182,14 +2193,19 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
     } else {
         // No Active Alarm
         
-        // If we are on the warning screen, we MUST wait for Acknowledge (Button 2) before leaving.
-        // This implements "Latching Layout" behavior.
+        // If we feature auto-clear, we would do it here. 
+        // But we have LATCHING logic now.
+        
         if (lv_scr_act() == warning_screen) {
             if (sys_modbus_data.buttons[1]) {
                 // User pressed Ack -> Dismiss
                 alarm_acknowledged = false; 
                 if(warning_label) lv_obj_add_flag(warning_label, LV_OBJ_FLAG_HIDDEN);
                 
+                // Clear suppression if we are manually dismissing? 
+                // Or set it? Ideally set it to prevent immediate bounce back if alarm toggles.
+                warning_suppression_end_time = esp_timer_get_time() + 60000000;
+
                 if (last_active_screen) lv_scr_load(last_active_screen);
                 else lv_scr_load(main_screen);
                 
