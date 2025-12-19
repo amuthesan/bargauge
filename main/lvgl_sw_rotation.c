@@ -2164,6 +2164,16 @@ static void gas_update_timer_cb(lv_timer_t * timer) {
         // Show Warning Label (Top Bar) - Always show this, regardless of screen suppression
         if(warning_label) lv_obj_clear_flag(warning_label, LV_OBJ_FLAG_HIDDEN);
         
+        // Logic Fix: If alarm is acknowledged but suppression has expired, we must FORCE reset the ack flag
+        // to allow the screen to reappear. The Siren will NOT re-trigger because it requires a Rising Edge.
+        if (alarm_acknowledged && warning_suppression_end_time > 0) {
+            if (esp_timer_get_time() > warning_suppression_end_time) {
+                alarm_acknowledged = false; 
+                warning_suppression_end_time = 0; // Reset timer so we don't spam checking
+                ESP_LOGW(TAG, "Warning Suppression Expired & Alarm Active -> Re-showing Screen (Visual Only)");
+            }
+        }
+
         // Create Warning Screen Logic
         if(!alarm_acknowledged) {
             
